@@ -181,7 +181,7 @@ router.get('/auth/google/callback',
       console.error('[Auth] ❌ Error during callback:', err);
       return renderError(res, 500, 'เกิดข้อผิดพลาด',
         'เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง',
-        config.isDev ? err.message : '');
+        err.message);  // แสดง error detail เพื่อ debug
     }
   }
 );

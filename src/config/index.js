@@ -73,9 +73,8 @@ const config = {
   // ---- Database ----
   database: {
     connectionString: require_env('DATABASE_URL'),
-    ssl: (process.env.NODE_ENV === 'production')
-      ? { rejectUnauthorized: false }
-      : false,
+    // Supabase pooler (port 6543) ต้องการ SSL เสมอ
+    ssl: { rejectUnauthorized: false },
   },
 };
 
