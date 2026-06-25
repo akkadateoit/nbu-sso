@@ -171,7 +171,13 @@ router.get('/auth/google/callback',
       delete req.session.sso_app_id;
       delete req.session.sso_redirect_uri;
 
-      const callbackUrl = new URL(redirectUri);
+      // เติม https:// ถ้า redirect_uri ไม่มี protocol นำหน้า
+      let finalRedirectUri = redirectUri;
+      if (!/^https?:\/\//i.test(finalRedirectUri)) {
+        finalRedirectUri = 'https://' + finalRedirectUri;
+      }
+
+      const callbackUrl = new URL(finalRedirectUri);
       callbackUrl.searchParams.set('token', token);
 
       console.log(`[Auth] ✅ Login สำเร็จ: ${user.email} → ${app.app_name} (${permission.role_key})`);
