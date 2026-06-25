@@ -1,0 +1,11 @@
+# ไม่ copy ไฟล์เหล่านี้เข้า Docker image
+.env
+.env.*
+secrets/
+node_modules/
+*.log
+.git/
+.gitignore
+docs/
+scripts/
+README.md

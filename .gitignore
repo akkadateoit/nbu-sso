@@ -1,0 +1,5 @@
+# Secrets & Dependencies - ห้าม commit
+.env
+secrets/
+node_modules/
+*.log
