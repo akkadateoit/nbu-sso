@@ -24,7 +24,12 @@ function loadKey(envPathKey, envRawKey) {
     return process.env[envRawKey].replace(/\\n/g, '\n');
   }
 
-  const filePath = path.resolve(process.env[envPathKey] || '');
+  const envPathVal = process.env[envPathKey];
+  if (!envPathVal) {
+    throw new Error(`[Config] Missing required key! You must set either ${envRawKey} or ${envPathKey} in environment variables.`);
+  }
+
+  const filePath = path.resolve(envPathVal);
   if (!fs.existsSync(filePath)) {
     throw new Error(`[Config] Key file not found: ${filePath}`);
   }
