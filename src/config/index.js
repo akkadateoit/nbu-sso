@@ -15,12 +15,18 @@ function require_env(key) {
 }
 
 /**
- * โหลด RSA Key จากไฟล์ .pem
+ * โหลด RSA Key จากไฟล์ .pem หรือจาก Environment Variable โดยตรง
  */
-function loadKey(envPathKey) {
+function loadKey(envPathKey, envRawKey) {
+  // รองรับการใส่เนื้อหา Key โดยตรง (สำหรับ Cloud Run)
+  if (envRawKey && process.env[envRawKey]) {
+    // แปลง \n ที่เป็น string ให้เป็นขึ้นบรรทัดใหม่จริง
+    return process.env[envRawKey].replace(/\\n/g, '\n');
+  }
+
   const filePath = path.resolve(process.env[envPathKey] || '');
   if (!fs.existsSync(filePath)) {
-    throw new Error(`[Config] Key file not found: ${filePath} (set by ${envPathKey})`);
+    throw new Error(`[Config] Key file not found: ${filePath}`);
   }
   return fs.readFileSync(filePath, 'utf8');
 }
@@ -42,6 +48,7 @@ const config = {
     callbackUrl:  require_env('GOOGLE_CALLBACK_URL'),
     // Admin SDK (สำหรับตรวจ Google Group)
     serviceAccountKeyPath: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || './secrets/service-account.json',
+    serviceAccountRawJson: process.env.GOOGLE_SERVICE_ACCOUNT_RAW_JSON,
     workspaceAdminEmail:   require_env('GOOGLE_WORKSPACE_ADMIN_EMAIL'),
     allowedGroup:          require_env('ALLOWED_GOOGLE_GROUP'),
     // ตั้ง SKIP_GROUP_CHECK=true ใน .env สำหรับ local dev ที่ไม่มี Workspace
@@ -50,8 +57,8 @@ const config = {
 
   // ---- JWT ----
   jwt: {
-    privateKey:  loadKey('JWT_PRIVATE_KEY_PATH'),
-    publicKey:   loadKey('JWT_PUBLIC_KEY_PATH'),
+    privateKey:  loadKey('JWT_PRIVATE_KEY_PATH', 'JWT_PRIVATE_KEY_RAW'),
+    publicKey:   loadKey('JWT_PUBLIC_KEY_PATH', 'JWT_PUBLIC_KEY_RAW'),
     expiresIn:   process.env.JWT_EXPIRES_IN || '8h',
     algorithm:   'RS256',
     issuer:      'sso.northbkk.ac.th',

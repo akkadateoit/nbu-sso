@@ -8,15 +8,24 @@ const config = require('../config');
  * (ต้องมี Domain-wide Delegation บน Service Account)
  */
 function getAdminClient() {
-  const keyPath = path.resolve(config.google.serviceAccountKeyPath);
-  const auth = new google.auth.GoogleAuth({
-    keyFile: keyPath,
-    scopes: ['https://www.googleapis.com/auth/admin.directory.group.member.readonly'],
-    // Impersonate admin เพื่อใช้ Admin SDK
-    clientOptions: {
-      subject: config.google.workspaceAdminEmail,
-    },
-  });
+  let auth;
+  // ถ้าระบุ JSON แบบ raw มาใน ENV (สำหรับ Cloud Run)
+  if (config.google.serviceAccountRawJson) {
+    auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(config.google.serviceAccountRawJson),
+      scopes: ['https://www.googleapis.com/auth/admin.directory.group.member.readonly'],
+      clientOptions: { subject: config.google.workspaceAdminEmail },
+    });
+  } else {
+    // ถ้าไม่มี ให้โหลดจากไฟล์ (สำหรับ Local)
+    const keyPath = path.resolve(config.google.serviceAccountKeyPath);
+    auth = new google.auth.GoogleAuth({
+      keyFile: keyPath,
+      scopes: ['https://www.googleapis.com/auth/admin.directory.group.member.readonly'],
+      clientOptions: { subject: config.google.workspaceAdminEmail },
+    });
+  }
+
   return google.admin({ version: 'directory_v1', auth });
 }
 
