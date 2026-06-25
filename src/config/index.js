@@ -33,7 +33,8 @@ function loadKey(envPathKey, envRawKey) {
 
 const config = {
   // ---- Server ----
-  port: parseInt(process.env.APP_PORT || '3000', 10),
+  // Cloud Run จะส่งพอร์ตมาทางตัวแปร PORT อัตโนมัติ (ปกติคือ 8080)
+  port: parseInt(process.env.PORT || process.env.APP_PORT || '3000', 10),
   appUrl: process.env.APP_URL || 'http://localhost:3000',
   nodeEnv: process.env.NODE_ENV || 'development',
   isDev: (process.env.NODE_ENV || 'development') !== 'production',
