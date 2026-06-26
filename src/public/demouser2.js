@@ -33,8 +33,19 @@ function redirectToSSO() {
 
 function logout() {
   sessionStorage.removeItem(TOKEN_KEY);
-  // logout แล้ว auto-redirect ไป SSO ใหม่ทันที
-  redirectToSSO();
+  // ซ่อน profile → แสดงหน้า "ออกจากระบบแล้ว"
+  // ไม่ auto-redirect เพราะ Google session ยังอยู่ → จะ login กลับทันที
+  document.getElementById('profile-view').style.display = 'none';
+  var loadingEl   = document.getElementById('loading-view');
+  var loadingText = document.querySelector('.loading-text');
+  var spinner     = document.querySelector('.spinner');
+  if (spinner)     spinner.style.display     = 'none';
+  if (loadingText) loadingText.textContent   = 'ออกจากระบบแล้ว';
+  if (loadingEl)   loadingEl.style.display   = 'flex';
+
+  // แสดงปุ่มเข้าใหม่
+  var reloginEl = document.getElementById('relogin-btn');
+  if (reloginEl) reloginEl.style.display = 'inline-flex';
 }
 
 function toggleToken() {
@@ -99,6 +110,9 @@ window.onload = function () {
   if (tokenHint) tokenHint.addEventListener('click', toggleToken);
   if (btnCopy)   btnCopy.addEventListener('click', copyToken);
   if (btnLogout) btnLogout.addEventListener('click', logout);
+
+  var reloginBtn = document.getElementById('relogin-btn');
+  if (reloginBtn) reloginBtn.addEventListener('click', redirectToSSO);
 
   // ── ตรวจ token ──
   var params = new URLSearchParams(window.location.search);
