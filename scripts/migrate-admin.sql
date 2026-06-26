@@ -31,7 +31,23 @@ VALUES (
 )
 ON CONFLICT (app_name) DO NOTHING;
 
--- 4. ให้สิทธิ์ ADMIN แก่ผู้ดูแลระบบ (เปลี่ยน email และ dept_id ตามจริง)
+-- 5. Seed แอป demo (สำหรับหน้า /demouser ทดสอบ SSO)
+INSERT INTO apps (app_name, app_secret, description)
+VALUES (
+  'demo',
+  encode(gen_random_bytes(32), 'hex'),
+  'Demo Page — ทดสอบ SSO Login Flow'
+)
+ON CONFLICT (app_name) DO NOTHING;
+
+-- ให้สิทธิ์ demo แก่ตัวเอง (เปลี่ยน email ตามจริง)
+-- INSERT INTO user_app_permissions (user_id, app_id, role_key, scope_dept_id)
+-- SELECT u.id, a.id, 'ADMIN', 100
+-- FROM users u CROSS JOIN apps a
+-- WHERE u.email    = 'akkadate.si@northbkk.ac.th'
+--   AND a.app_name = 'demo';
+
+-- 6. ให้สิทธิ์ ADMIN แก่ผู้ดูแลระบบ (เปลี่ยน email และ dept_id ตามจริง)
 -- INSERT INTO user_app_permissions (user_id, app_id, role_key, scope_dept_id)
 -- SELECT u.id, a.id, 'ADMIN', 100
 -- FROM users u CROSS JOIN apps a
