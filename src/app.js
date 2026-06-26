@@ -27,7 +27,7 @@ app.use(helmet({
       defaultSrc:  ["'self'"],
       scriptSrc:   ["'self'", 'static.cloudflareinsights.com'],
       scriptSrcAttr: ["'none'"],
-      styleSrc:    ["'self'", 'https://fonts.googleapis.com'],
+      styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc:     ["'self'", 'https://fonts.gstatic.com'],
       connectSrc:  ["'self'", 'https://cloudflareinsights.com'],
       imgSrc:      ["'self'", 'data:'],
