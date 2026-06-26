@@ -174,14 +174,18 @@ router.post('/permissions', async (req, res) => {
 });
 
 router.patch('/permissions/:id', async (req, res) => {
-  const { role_key } = req.body;
-  if (!role_key) return res.status(400).json({ error: 'ต้องส่ง role_key' });
+  const { role_key, scope_dept_id } = req.body;
+  if (!role_key && !scope_dept_id)
+    return res.status(400).json({ error: 'ต้องส่งอย่างน้อย role_key หรือ scope_dept_id' });
   try {
-    const perm = await svc.updatePermission(req.params.id, role_key);
+    const perm = await svc.updatePermission(req.params.id, {
+      roleKey:     role_key,
+      scopeDeptId: scope_dept_id,
+    });
     if (!perm) return res.status(404).json({ error: 'ไม่พบ Permission' });
     await svc.writeAuditLog({
       actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
-      action: 'UPDATE', detail: { permission_id: req.params.id, role_key },
+      action: 'UPDATE', detail: { permission_id: req.params.id, role_key, scope_dept_id },
     });
     res.json(perm);
   } catch (e) {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle, X } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle, X, Pencil } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -125,6 +125,100 @@ function AddUserDialog() {
             disabled={!email || !emailValid || add.isPending}
           >
             {add.isPending ? 'กำลังเพิ่ม...' : 'เพิ่มผู้ใช้'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Edit Permission Dialog ─────────────────────────────────────
+function EditPermDialog({ perm, userId }) {
+  const [open,    setOpen]    = useState(false)
+  const [roleKey, setRoleKey] = useState(perm.role_key)
+  const [deptId,  setDeptId]  = useState(String(perm.scope_dept_id))
+  const qc = useQueryClient()
+
+  const { data: roles = [] } = useQuery({ queryKey: ['roles'], queryFn: () => api.get('/roles').then(r => r.data) })
+  const { data: depts = [] } = useQuery({ queryKey: ['depts'], queryFn: () => api.get('/departments').then(r => r.data) })
+
+  const save = useMutation({
+    mutationFn: () => api.patch(`/permissions/${perm.id}`, {
+      role_key:      roleKey,
+      scope_dept_id: +deptId,
+    }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['userPerms', userId] })
+      setOpen(false)
+    },
+  })
+
+  function handleOpen(v) {
+    if (v) { setRoleKey(perm.role_key); setDeptId(String(perm.scope_dept_id)); save.reset() }
+    setOpen(v)
+  }
+
+  const changed = roleKey !== perm.role_key || deptId !== String(perm.scope_dept_id)
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-400 hover:text-blue-600 hover:bg-blue-50" title="แก้ไขสิทธิ์">
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>แก้ไขสิทธิ์</DialogTitle>
+          <DialogDescription>
+            App: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sm">{perm.app_name}</code>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Role</Label>
+            <Select value={roleKey} onValueChange={setRoleKey}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {roles.map(r => (
+                  <SelectItem key={r.role_key} value={r.role_key}>
+                    {r.role_key} — {r.role_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>หน่วยงาน (Scope)</Label>
+            <Select value={deptId} onValueChange={setDeptId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {depts.map(d => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    [{d.dept_type}] {d.dept_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* แสดงค่าเดิม */}
+          <div className="rounded-lg bg-slate-50 border px-3 py-2 text-xs text-gray-500 space-y-0.5">
+            <p className="font-medium text-gray-600">ค่าเดิม</p>
+            <p>Role: <span className="font-mono">{perm.role_key}</span> → Scope: {perm.dept_name}</p>
+          </div>
+
+          {save.error && (
+            <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+              {save.error.response?.data?.error || 'เกิดข้อผิดพลาด'}
+            </p>
+          )}
+          <Button
+            className="w-full"
+            onClick={() => save.mutate()}
+            disabled={!changed || save.isPending}
+          >
+            {save.isPending ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
           </Button>
         </div>
       </DialogContent>
@@ -329,15 +423,18 @@ function UserRow({ user }) {
                           <td className="px-4 py-2.5 text-gray-600 text-xs">
                             <span className="font-medium">[{p.scope_level}]</span> {p.dept_name}
                           </td>
-                          <td className="px-4 py-2.5 text-center">
-                            <Button
-                              variant="ghost" size="sm"
-                              className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => setConfirmRevoke(p)}
-                              title="ลบสิทธิ์นี้"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center justify-center gap-1">
+                              <EditPermDialog perm={p} userId={user.id} />
+                              <Button
+                                variant="ghost" size="sm"
+                                className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => setConfirmRevoke(p)}
+                                title="ลบสิทธิ์นี้"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}

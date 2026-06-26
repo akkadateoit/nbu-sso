@@ -141,11 +141,17 @@ async function grantPermission(userId, appId, roleKey, scopeDeptId) {
   return rows[0];
 }
 
-async function updatePermission(permId, roleKey) {
-  const { rows } = await pool.query(`
-    UPDATE user_app_permissions SET role_key = $1 WHERE id = $2
-    RETURNING id, user_id, app_id, role_key, scope_dept_id
-  `, [roleKey, permId]);
+async function updatePermission(permId, { roleKey, scopeDeptId }) {
+  const sets = []; const values = []; let idx = 1;
+  if (roleKey     !== undefined) { sets.push(`role_key      = $${idx++}`); values.push(roleKey); }
+  if (scopeDeptId !== undefined) { sets.push(`scope_dept_id = $${idx++}`); values.push(scopeDeptId); }
+  if (!sets.length) return null;
+  values.push(permId);
+  const { rows } = await pool.query(
+    `UPDATE user_app_permissions SET ${sets.join(', ')} WHERE id = $${idx}
+     RETURNING id, user_id, app_id, role_key, scope_dept_id`,
+    values
+  );
   return rows[0] || null;
 }
 
