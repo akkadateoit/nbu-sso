@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "dev:admin": "cd admin-ui && npm run dev",
+    "build:admin": "cd admin-ui && npm run build",
     "migrate": "node scripts/migrate.js",
     "generate-keys": "node scripts/generate-jwt-keys.js"
   },

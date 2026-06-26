@@ -6,8 +6,9 @@ const session    = require('express-session');
 const pgSession  = require('connect-pg-simple')(session);
 const config     = require('./config');
 const { pool }   = require('./db');
-const authRouter = require('./routes/auth');
-const apiRouter  = require('./routes/api');
+const authRouter  = require('./routes/auth');
+const apiRouter   = require('./routes/api');
+const adminRouter = require('./routes/adminApi');
 const { passport } = require('./routes/auth');
 
 const app = express();
@@ -68,6 +69,17 @@ app.use(passport.initialize());
 // ======================================================
 app.use('/', authRouter);
 app.use('/api/v1', apiRouter);
+app.use('/api/v1/admin', adminRouter);
+
+// ======================================================
+// Admin UI — serve React build from admin-ui/dist/
+// SPA fallback: ทุก path ใต้ /admin/* → index.html
+// ======================================================
+const adminDistPath = require('path').join(__dirname, '..', 'admin-ui', 'dist');
+app.use('/admin', require('express').static(adminDistPath));
+app.get('/admin/*', (_req, res) => {
+  res.sendFile(require('path').join(adminDistPath, 'index.html'));
+});
 
 // ======================================================
 // 404 Handler

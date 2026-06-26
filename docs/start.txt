@@ -1,0 +1,31 @@
+Workflow สร้างแอปใหม่ (ทุกครั้ง)
+Step 1 — สร้าง Folder ใหม่
+d:\coding\my-new-app\
+Step 2 — Copy ไฟล์เหล่านี้ไปไว้ใน Folder
+d:\coding\nbu-sso\docs\SSO_STARTER.md         ← สำคัญที่สุด
+d:\coding\nbu-sso\docs\FOR_AI_NEW_APP.md      ← SQL + รายละเอียด
+d:\coding\nbu-sso\docs\SSO_INTEGRATION_GUIDE.md ← คู่มือเพิ่มเติม
+(3 ไฟล์นี้พอครับ ไม่ต้อง copy ไฟล์อื่น)
+
+Step 3 — บอก Claude AI ด้วย Prompt นี้
+อ่านไฟล์เหล่านี้ก่อนครับ:
+- SSO_STARTER.md
+- FOR_AI_NEW_APP.md
+- SSO_INTEGRATION_GUIDE.md
+แล้วช่วยสร้างระบบ [ชื่อระบบ] โดย:
+- Tech Stack: [Node.js / Python / Next.js / HTML]
+- app_id = "[ชื่อ app ที่จะลงทะเบียนใน SSO]"
+ฟีเจอร์:
+1. [บรรยายฟีเจอร์ที่ต้องการ]
+2. [บรรยายฟีเจอร์ที่ต้องการ]
+สิทธิ์:
+- ADMIN = [ทำอะไรได้บ้าง]
+- STAFF = [ทำอะไรได้บ้าง]
+TIP
+
+หลังจาก Claude สร้าง Code เสร็จแล้ว อย่าลืม Setup ใน Supabase ด้วยนะครับ (มีใน FOR_AI_NEW_APP.md):
+
+Insert apps table
+Insert user_app_permissions table
+เพิ่ม OAuth Redirect URI ใน Google Console
+แค่นี้เลยครับ ง่ายและ Repeat ได้ทุกแอปครับ! 🚀

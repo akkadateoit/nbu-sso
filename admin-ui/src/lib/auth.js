@@ -1,0 +1,38 @@
+const TOKEN_KEY = 'nbu_admin_token'
+const SSO_URL   = ''   // same origin
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function decodeToken(token) {
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(b64))
+  } catch { return null }
+}
+
+export function isTokenValid(token) {
+  const p = decodeToken(token)
+  if (!p) return false
+  return Date.now() < p.exp * 1000
+}
+
+export function saveToken(token) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+export function redirectToLogin() {
+  const cb = encodeURIComponent(window.location.origin + '/admin/callback')
+  window.location.href = `${SSO_URL}/login?app_id=sso-admin&redirect_uri=${cb}`
+}
+
+export function getCurrentUser() {
+  const token = getToken()
+  if (!token || !isTokenValid(token)) return null
+  return decodeToken(token)
+}

@@ -1,34 +1,52 @@
-# ---- Build stage ----
-FROM node:20-alpine AS builder
+# ============================================================
+# Stage 1: Build admin-ui (React + Vite)
+# ============================================================
+FROM node:20-alpine AS admin-builder
+
+WORKDIR /app/admin-ui
+
+COPY admin-ui/package*.json ./
+RUN npm ci --legacy-peer-deps
+
+COPY admin-ui/ ./
+RUN npm run build
+# ผลลัพธ์อยู่ที่ /app/admin-ui/dist/
+
+# ============================================================
+# Stage 2: Install backend production dependencies
+# ============================================================
+FROM node:20-alpine AS backend-builder
 
 WORKDIR /app
 
-# Copy package files ก่อนเพื่อ cache layer
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# ---- Production stage ----
+# ============================================================
+# Stage 3: Production image
+# ============================================================
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy dependencies จาก builder
-COPY --from=builder /app/node_modules ./node_modules
+# Backend dependencies
+COPY --from=backend-builder /app/node_modules ./node_modules
 
-# Copy source code
+# Backend source
 COPY src/ ./src/
 COPY package.json ./
 
-# ไม่ copy .env และ secrets/ — ค่า config ต้องมาจาก Cloud Run environment variables
-# JWT keys ต้องส่งผ่าน env vars หรือ Secret Manager
+# Admin UI build output → Express จะ serve จาก admin-ui/dist/
+COPY --from=admin-builder /app/admin-ui/dist/ ./admin-ui/dist/
 
-# User ที่ไม่ใช่ root (Security best practice)
+# ไม่ copy .env และ secrets/ — ค่า config มาจาก Cloud Run environment variables
+
+# Non-root user (security best practice)
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 EXPOSE 3000
 
-# Health check สำหรับ Cloud Run
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget -qO- http://localhost:3000/api/v1/health || exit 1
 
