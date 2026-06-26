@@ -67,6 +67,9 @@ app.use(passport.initialize());
 // ======================================================
 // Routes
 // ======================================================
+app.get('/', (_req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'index.html'));
+});
 app.use('/', authRouter);
 app.use('/api/v1', apiRouter);
 app.use('/api/v1/admin', adminRouter);
