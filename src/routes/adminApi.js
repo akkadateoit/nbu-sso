@@ -98,6 +98,21 @@ router.get('/users/:id/permissions', async (req, res) => {
   }
 });
 
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const user = await svc.deleteUser(req.params.id);
+    if (!user) return res.status(404).json({ error: 'ไม่พบ User' });
+    await svc.writeAuditLog({
+      actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
+      action: 'DELETE_USER', targetEmail: user.email,
+      detail: { user_id: req.params.id },
+    });
+    res.json({ success: true, deleted: user });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.patch('/users/:id/active', async (req, res) => {
   const { is_active } = req.body;
   try {

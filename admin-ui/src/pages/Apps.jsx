@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Copy, Check, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Copy, Check, ToggleLeft, ToggleRight, Search, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -89,6 +89,8 @@ function CreateAppDialog({ onCreated }) {
 
 export default function Apps() {
   const qc = useQueryClient()
+  const [search, setSearch] = useState('')
+
   const { data: apps = [], isLoading } = useQuery({
     queryKey: ['apps'],
     queryFn: () => api.get('/apps').then(r => r.data),
@@ -99,20 +101,51 @@ export default function Apps() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['apps'] }),
   })
 
+  const filtered = apps.filter(a =>
+    a.app_name.toLowerCase().includes(search.toLowerCase()) ||
+    (a.description || '').toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">แอปพลิเคชัน</h1>
-          <p className="text-muted-foreground text-sm mt-1">แอปทั้งหมดที่ลงทะเบียนใช้งาน NBU SSO</p>
+          <p className="text-sm text-gray-500 mt-1">แอปทั้งหมดที่ลงทะเบียนใช้งาน NBU SSO</p>
         </div>
         <CreateAppDialog />
       </div>
 
+      {/* Search bar */}
+      <div className="flex items-center gap-2">
+        <div className="relative max-w-sm w-full">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Input
+            className="pl-8 pr-8"
+            placeholder="ค้นหา App ID หรือชื่อระบบ..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+              onClick={() => setSearch('')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <span className="text-sm text-gray-400 shrink-0">
+          {filtered.length} / {apps.length} apps
+        </span>
+      </div>
+
       <div className="grid gap-4">
         {isLoading ? (
-          <p className="text-muted-foreground text-sm">กำลังโหลด...</p>
-        ) : apps.map(app => (
+          <p className="text-sm text-gray-400">กำลังโหลด...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-gray-400">ไม่พบแอปที่ค้นหา</p>
+        ) : filtered.map(app => (
           <Card key={app.id}>
             <CardContent className="flex items-center gap-4 py-4">
               <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-sm uppercase shrink-0">
