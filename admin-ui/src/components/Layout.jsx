@@ -1,15 +1,16 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, Users, ScrollText, LogOut, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, Package, Users, ScrollText, LogOut, ShieldCheck, Database } from 'lucide-react'
 import { getCurrentUser, clearToken, redirectToLogin } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { to: '/',         label: 'Dashboard',  icon: LayoutDashboard, end: true },
-  { to: '/apps',     label: 'Apps',       icon: Package },
-  { to: '/users',    label: 'Users',      icon: Users },
-  { to: '/audit',    label: 'Audit Log',  icon: ScrollText },
+  { to: '/',          label: 'Dashboard',       icon: LayoutDashboard, end: true },
+  { to: '/apps',      label: 'Apps',            icon: Package },
+  { to: '/users',     label: 'Users',           icon: Users },
+  { to: '/master',    label: 'Role & Scope',    icon: Database },
+  { to: '/audit',     label: 'Audit Log',       icon: ScrollText },
 ]
 
 export default function Layout() {

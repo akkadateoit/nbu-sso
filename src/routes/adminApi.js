@@ -169,15 +169,83 @@ router.delete('/permissions/:id', async (req, res) => {
   }
 });
 
-// ── Master Data ───────────────────────────────────────────────
+// ── Roles CRUD ────────────────────────────────────────────────
+router.get('/roles', async (req, res) => {
+  try { res.json(await svc.listRoles()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/roles', async (req, res) => {
+  const { role_key, role_name, description } = req.body;
+  if (!role_key || !role_name) return res.status(400).json({ error: 'ต้องส่ง role_key และ role_name' });
+  if (!/^[A-Z0-9_]+$/.test(role_key))
+    return res.status(400).json({ error: 'role_key ใช้ได้เฉพาะตัวพิมพ์ใหญ่ ตัวเลข และ _' });
+  try {
+    const role = await svc.createRole(role_key, role_name, description || '');
+    await svc.writeAuditLog({ actedById: req.adminUser.sub, actedByEmail: req.adminUser.email, action: 'CREATE_ROLE', detail: { role_key, role_name } });
+    res.status(201).json(role);
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'Role Key นี้มีอยู่แล้ว' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch('/roles/:key', async (req, res) => {
+  const { role_name, description } = req.body;
+  try {
+    const role = await svc.updateRole(req.params.key, { role_name, description });
+    if (!role) return res.status(404).json({ error: 'ไม่พบ Role' });
+    res.json(role);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/roles/:key', async (req, res) => {
+  try {
+    const role = await svc.deleteRole(req.params.key);
+    if (!role) return res.status(404).json({ error: 'ไม่พบ Role' });
+    res.json({ success: true });
+  } catch (e) {
+    if (e.code === '23503') return res.status(409).json({ error: 'ไม่สามารถลบได้ เพราะมีผู้ใช้ที่ใช้ Role นี้อยู่' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Departments CRUD ──────────────────────────────────────────
 router.get('/departments', async (req, res) => {
   try { res.json(await svc.listDepartments()); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/roles', async (req, res) => {
-  try { res.json(await svc.listRoles()); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+router.post('/departments', async (req, res) => {
+  const { dept_name, dept_type, parent_id } = req.body;
+  if (!dept_name || !dept_type) return res.status(400).json({ error: 'ต้องส่ง dept_name และ dept_type' });
+  const validTypes = ['UNIVERSITY', 'FACULTY', 'BRANCH', 'OFFICE'];
+  if (!validTypes.includes(dept_type)) return res.status(400).json({ error: `dept_type ต้องเป็น: ${validTypes.join(', ')}` });
+  try {
+    const dept = await svc.createDepartment(dept_name, dept_type, parent_id || null);
+    await svc.writeAuditLog({ actedById: req.adminUser.sub, actedByEmail: req.adminUser.email, action: 'CREATE_DEPT', detail: { dept_name, dept_type } });
+    res.status(201).json(dept);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/departments/:id', async (req, res) => {
+  const { dept_name, dept_type, parent_id } = req.body;
+  try {
+    const dept = await svc.updateDepartment(req.params.id, { dept_name, dept_type, parent_id });
+    if (!dept) return res.status(404).json({ error: 'ไม่พบ Department' });
+    res.json(dept);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/departments/:id', async (req, res) => {
+  try {
+    const dept = await svc.deleteDepartment(req.params.id);
+    if (!dept) return res.status(404).json({ error: 'ไม่พบ Department' });
+    res.json({ success: true });
+  } catch (e) {
+    if (e.code === '23503') return res.status(409).json({ error: 'ไม่สามารถลบได้ เพราะมีผู้ใช้ที่ใช้ Scope นี้อยู่' });
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Audit Logs ────────────────────────────────────────────────

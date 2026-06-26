@@ -139,19 +139,77 @@ async function revokePermission(permId) {
   return rows[0] || null;
 }
 
-// ── Departments & Roles ───────────────────────────────────────
-async function listDepartments() {
+// ── Roles ─────────────────────────────────────────────────────
+async function listRoles() {
   const { rows } = await pool.query(`
-    SELECT id, dept_name, dept_type, parent_id FROM departments ORDER BY id
+    SELECT r.role_key, r.role_name, r.description,
+           COUNT(uap.id)::int AS usage_count
+    FROM roles r
+    LEFT JOIN user_app_permissions uap ON uap.role_key = r.role_key
+    GROUP BY r.role_key ORDER BY r.role_key
   `);
   return rows;
 }
 
-async function listRoles() {
+async function createRole(roleKey, roleName, description) {
   const { rows } = await pool.query(`
-    SELECT role_key, role_name, description FROM roles ORDER BY role_key
+    INSERT INTO roles (role_key, role_name, description)
+    VALUES ($1, $2, $3) RETURNING *
+  `, [roleKey, roleName, description]);
+  return rows[0];
+}
+
+async function updateRole(roleKey, fields) {
+  const sets = []; const values = []; let idx = 1;
+  if (fields.role_name   !== undefined) { sets.push(`role_name   = $${idx++}`); values.push(fields.role_name); }
+  if (fields.description !== undefined) { sets.push(`description = $${idx++}`); values.push(fields.description); }
+  if (!sets.length) return null;
+  values.push(roleKey);
+  const { rows } = await pool.query(`UPDATE roles SET ${sets.join(', ')} WHERE role_key = $${idx} RETURNING *`, values);
+  return rows[0] || null;
+}
+
+async function deleteRole(roleKey) {
+  const { rows } = await pool.query(`DELETE FROM roles WHERE role_key = $1 RETURNING *`, [roleKey]);
+  return rows[0] || null;
+}
+
+// ── Departments ───────────────────────────────────────────────
+async function listDepartments() {
+  const { rows } = await pool.query(`
+    SELECT d.id, d.dept_name, d.dept_type, d.parent_id,
+           p.dept_name AS parent_name,
+           COUNT(uap.id)::int AS usage_count
+    FROM departments d
+    LEFT JOIN departments p   ON p.id = d.parent_id
+    LEFT JOIN user_app_permissions uap ON uap.scope_dept_id = d.id
+    GROUP BY d.id, p.dept_name ORDER BY d.dept_type, d.id
   `);
   return rows;
+}
+
+async function createDepartment(deptName, deptType, parentId) {
+  const { rows } = await pool.query(`
+    INSERT INTO departments (dept_name, dept_type, parent_id)
+    VALUES ($1, $2, $3) RETURNING *
+  `, [deptName, deptType, parentId]);
+  return rows[0];
+}
+
+async function updateDepartment(id, fields) {
+  const sets = []; const values = []; let idx = 1;
+  if (fields.dept_name !== undefined) { sets.push(`dept_name = $${idx++}`); values.push(fields.dept_name); }
+  if (fields.dept_type !== undefined) { sets.push(`dept_type = $${idx++}`); values.push(fields.dept_type); }
+  if (fields.parent_id !== undefined) { sets.push(`parent_id = $${idx++}`); values.push(fields.parent_id || null); }
+  if (!sets.length) return null;
+  values.push(id);
+  const { rows } = await pool.query(`UPDATE departments SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`, values);
+  return rows[0] || null;
+}
+
+async function deleteDepartment(id) {
+  const { rows } = await pool.query(`DELETE FROM departments WHERE id = $1 RETURNING *`, [id]);
+  return rows[0] || null;
 }
 
 // ── Audit Logs ────────────────────────────────────────────────
@@ -179,6 +237,7 @@ module.exports = {
   listApps, createApp, updateApp,
   listUsers, getUserPermissions, setUserActive,
   grantPermission, updatePermission, revokePermission,
-  listDepartments, listRoles,
+  listRoles, createRole, updateRole, deleteRole,
+  listDepartments, createDepartment, updateDepartment, deleteDepartment,
   listAuditLogs, writeAuditLog,
 };
