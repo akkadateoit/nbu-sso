@@ -76,6 +76,9 @@ app.use(express.static(require('path').join(__dirname, 'public')));
 app.get('/demouser', (_req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'demouser.html'));
 });
+app.get('/demouser2', (_req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'demouser2.html'));
+});
 app.use('/', authRouter);
 app.use('/api/v1', apiRouter);
 app.use('/api/v1/admin', adminRouter);
