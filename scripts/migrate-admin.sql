@@ -12,10 +12,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   id            SERIAL PRIMARY KEY,
   acted_by_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
   acted_by_email VARCHAR(150),
-  action        VARCHAR(50)  NOT NULL,  -- 'GRANT' | 'REVOKE' | 'UPDATE' | 'CREATE_APP' | 'DISABLE_APP'
-  target_email  VARCHAR(150),           -- email ของผู้ถูกแก้สิทธิ์ (ถ้ามี)
-  app_name      VARCHAR(100),           -- ชื่อแอปที่เกี่ยวข้อง
-  detail        JSONB,                  -- ข้อมูลเพิ่มเติม เช่น { role_before, role_after, dept_id }
+  action        VARCHAR(50)  NOT NULL,
+  target_email  VARCHAR(150),
+  app_name      VARCHAR(100),
+  detail        JSONB,
   created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -31,7 +31,7 @@ VALUES (
 )
 ON CONFLICT (app_name) DO NOTHING;
 
--- 5. Seed แอป demo (สำหรับหน้า /demouser ทดสอบ SSO)
+-- 4. Seed แอป demo (สำหรับหน้า /demouser ทดสอบ SSO)
 INSERT INTO apps (app_name, app_secret, description)
 VALUES (
   'demo',
@@ -40,16 +40,18 @@ VALUES (
 )
 ON CONFLICT (app_name) DO NOTHING;
 
--- ให้สิทธิ์ demo แก่ตัวเอง (เปลี่ยน email ตามจริง)
--- INSERT INTO user_app_permissions (user_id, app_id, role_key, scope_dept_id)
--- SELECT u.id, a.id, 'ADMIN', 100
--- FROM users u CROSS JOIN apps a
--- WHERE u.email    = 'akkadate.si@northbkk.ac.th'
---   AND a.app_name = 'demo';
+-- 5. ให้สิทธิ์ ADMIN ใน sso-admin แก่ akkadate.si@northbkk.ac.th
+INSERT INTO user_app_permissions (user_id, app_id, role_key, scope_dept_id)
+SELECT u.id, a.id, 'ADMIN', 100
+FROM users u CROSS JOIN apps a
+WHERE u.email    = 'akkadate.si@northbkk.ac.th'
+  AND a.app_name = 'sso-admin'
+ON CONFLICT (user_id, app_id, scope_dept_id) DO NOTHING;
 
--- 6. ให้สิทธิ์ ADMIN แก่ผู้ดูแลระบบ (เปลี่ยน email และ dept_id ตามจริง)
--- INSERT INTO user_app_permissions (user_id, app_id, role_key, scope_dept_id)
--- SELECT u.id, a.id, 'ADMIN', 100
--- FROM users u CROSS JOIN apps a
--- WHERE u.email    = 'akkadate.si@northbkk.ac.th'
---   AND a.app_name = 'sso-admin';
+-- 6. ให้สิทธิ์ ADMIN ใน demo แก่ akkadate.si@northbkk.ac.th
+INSERT INTO user_app_permissions (user_id, app_id, role_key, scope_dept_id)
+SELECT u.id, a.id, 'ADMIN', 100
+FROM users u CROSS JOIN apps a
+WHERE u.email    = 'akkadate.si@northbkk.ac.th'
+  AND a.app_name = 'demo'
+ON CONFLICT (user_id, app_id, scope_dept_id) DO NOTHING;

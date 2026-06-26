@@ -28,4 +28,6 @@ TIP
 Insert apps table
 Insert user_app_permissions table
 เพิ่ม OAuth Redirect URI ใน Google Console
-แค่นี้เลยครับ ง่ายและ Repeat ได้ทุกแอปครับ! 🚀
+แค่นี้เลยครับ ง่ายและ Repeat ได้ทุกแอปครับ! 🚀z
+
+version 5
