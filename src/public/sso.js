@@ -3,22 +3,23 @@
 async function checkHealth() {
   var pill = document.getElementById('status-pill')
   var text = document.getElementById('status-text')
-  var dot  = pill ? pill.querySelector('.status-dot') : null
+  // รองรับทั้ง class .sdot (design ใหม่) และ .status-dot (fallback)
+  var dot  = pill ? (pill.querySelector('.sdot') || pill.querySelector('.status-dot')) : null
   try {
     var r = await fetch('/api/v1/health')
     var d = await r.json()
     if (d.status === 'ok') {
       pill.className = 'online'
-      dot.className  = 'status-dot pulse'
+      if (dot) dot.className = 'sdot'
       text.textContent = 'ระบบพร้อมใช้งาน'
     } else {
       pill.className = 'error'
-      dot.className  = 'status-dot'
+      if (dot) dot.className = 'sdot'
       text.textContent = 'ระบบมีปัญหา'
     }
   } catch (e) {
     pill.className = 'error'
-    dot.className  = 'status-dot'
+    if (dot) dot.className = 'sdot'
     text.textContent = 'เชื่อมต่อไม่ได้'
   }
 }
