@@ -21,7 +21,19 @@ app.set('trust proxy', 1);
 // ======================================================
 // Security Headers
 // ======================================================
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'", 'static.cloudflareinsights.com'],
+      scriptSrcAttr: ["'none'"],
+      styleSrc:    ["'self'", 'https://fonts.googleapis.com'],
+      fontSrc:     ["'self'", 'https://fonts.gstatic.com'],
+      connectSrc:  ["'self'", 'https://cloudflareinsights.com'],
+      imgSrc:      ["'self'", 'data:'],
+    },
+  },
+}));
 
 // ======================================================
 // CORS — อนุญาต Sub-Apps ที่จะเรียก /api/*
