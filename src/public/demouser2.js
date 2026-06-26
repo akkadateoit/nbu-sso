@@ -1,6 +1,7 @@
-var APP_ID    = 'demo2';
-var TOKEN_KEY = 'nbu_demo2_token';
-var _token    = null;
+var APP_ID      = 'demo2';
+var TOKEN_KEY   = 'nbu_demo2_token';
+var LOGOUT_FLAG = 'nbu_demo2_logged_out';
+var _token      = null;
 
 function decode(token) {
   try {
@@ -31,21 +32,27 @@ function redirectToSSO() {
   window.location.href = '/login?app_id=' + APP_ID + '&redirect_uri=' + cb;
 }
 
+function showLoggedOut() {
+  document.getElementById('profile-view').style.display = 'none';
+  var spinner     = document.querySelector('.spinner');
+  var loadingText = document.querySelector('.loading-text');
+  var loadingEl   = document.getElementById('loading-view');
+  var reloginEl   = document.getElementById('relogin-btn');
+  if (spinner)     spinner.style.display   = 'none';
+  if (loadingText) loadingText.textContent = 'ออกจากระบบแล้ว';
+  if (loadingEl)   loadingEl.style.display = 'flex';
+  if (reloginEl)   reloginEl.style.display = 'inline-flex';
+}
+
 function logout() {
   sessionStorage.removeItem(TOKEN_KEY);
-  // ซ่อน profile → แสดงหน้า "ออกจากระบบแล้ว"
-  // ไม่ auto-redirect เพราะ Google session ยังอยู่ → จะ login กลับทันที
-  document.getElementById('profile-view').style.display = 'none';
-  var loadingEl   = document.getElementById('loading-view');
-  var loadingText = document.querySelector('.loading-text');
-  var spinner     = document.querySelector('.spinner');
-  if (spinner)     spinner.style.display     = 'none';
-  if (loadingText) loadingText.textContent   = 'ออกจากระบบแล้ว';
-  if (loadingEl)   loadingEl.style.display   = 'flex';
+  sessionStorage.setItem(LOGOUT_FLAG, '1');  // flag ป้องกัน auto-redirect เมื่อ refresh
+  showLoggedOut();
+}
 
-  // แสดงปุ่มเข้าใหม่
-  var reloginEl = document.getElementById('relogin-btn');
-  if (reloginEl) reloginEl.style.display = 'inline-flex';
+function relogin() {
+  sessionStorage.removeItem(LOGOUT_FLAG);  // ล้าง flag ก่อน redirect
+  redirectToSSO();
 }
 
 function toggleToken() {
@@ -101,18 +108,17 @@ function showProfile(payload, token) {
 
 window.onload = function () {
   // ── Event listeners ──
-  var tokenRaw  = document.getElementById('token-raw');
-  var tokenHint = document.querySelector('.token-expand-hint');
-  var btnCopy   = document.querySelector('.btn-copy');
-  var btnLogout = document.querySelector('.btn-logout');
-
-  if (tokenRaw)  tokenRaw.addEventListener('click', toggleToken);
-  if (tokenHint) tokenHint.addEventListener('click', toggleToken);
-  if (btnCopy)   btnCopy.addEventListener('click', copyToken);
-  if (btnLogout) btnLogout.addEventListener('click', logout);
-
+  var tokenRaw   = document.getElementById('token-raw');
+  var tokenHint  = document.querySelector('.token-expand-hint');
+  var btnCopy    = document.querySelector('.btn-copy');
+  var btnLogout  = document.querySelector('.btn-logout');
   var reloginBtn = document.getElementById('relogin-btn');
-  if (reloginBtn) reloginBtn.addEventListener('click', redirectToSSO);
+
+  if (tokenRaw)   tokenRaw.addEventListener('click', toggleToken);
+  if (tokenHint)  tokenHint.addEventListener('click', toggleToken);
+  if (btnCopy)    btnCopy.addEventListener('click', copyToken);
+  if (btnLogout)  btnLogout.addEventListener('click', logout);
+  if (reloginBtn) reloginBtn.addEventListener('click', relogin);
 
   // ── ตรวจ token ──
   var params = new URLSearchParams(window.location.search);
@@ -120,6 +126,7 @@ window.onload = function () {
 
   if (token) {
     history.replaceState({}, '', '/demouser2');
+    sessionStorage.removeItem(LOGOUT_FLAG);  // ล้าง flag เมื่อได้ token ใหม่
     if (!isExpired(token)) {
       sessionStorage.setItem(TOKEN_KEY, token);
     } else {
@@ -133,8 +140,11 @@ window.onload = function () {
     // มี token → แสดง profile
     document.getElementById('loading-view').style.display = 'none';
     showProfile(decode(token), token);
+  } else if (sessionStorage.getItem(LOGOUT_FLAG)) {
+    // logout flag ตั้งอยู่ → คงอยู่หน้า logout ไม่ auto-redirect
+    showLoggedOut();
   } else {
-    // ไม่มี token → Auto-redirect ไป SSO ทันที (ไม่แสดงปุ่ม)
+    // ไม่มี token + ไม่ได้ logout → auto-redirect
     redirectToSSO();
   }
 };
