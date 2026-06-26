@@ -165,17 +165,22 @@ function RolesSection() {
               <p className="px-6 py-4 text-sm text-gray-400">ไม่พบ Role ที่ค้นหา</p>
             )}
             {filtered.map((role, i) => (
-              <div key={role.role_key} className={`flex items-start gap-3 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
-                <code className="mt-0.5 shrink-0 rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-white">
+              <div key={role.role_key} className={`grid grid-cols-[160px_1fr_auto] items-center gap-4 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                {/* คอลัมน์ 1: Key */}
+                <code className="rounded bg-slate-800 px-2.5 py-1 text-xs font-mono text-white w-fit">
                   {role.role_key}
                 </code>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{role.role_name}</p>
-                  {role.description && <p className="text-xs text-gray-500 mt-0.5">{role.description}</p>}
+                {/* คอลัมน์ 2: Name + Description */}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{role.role_name}</p>
+                  {role.description && (
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{role.description}</p>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                {/* คอลัมน์ 3: Actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   {role.usage_count > 0 && (
-                    <span className="text-xs text-gray-400">{role.usage_count} users</span>
+                    <span className="text-xs text-gray-400 mr-1">{role.usage_count} users</span>
                   )}
                   <RoleFormDialog role={role} />
                   <Button
@@ -312,19 +317,22 @@ function DepartmentsSection() {
         ) : (
           <div className="divide-y">
             {depts.map((d, i) => (
-              <div key={d.id} className={`flex items-center gap-3 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${DEPT_TYPE_COLORS[d.dept_type] || 'bg-gray-100 text-gray-700'}`}>
+              <div key={d.id} className={`grid grid-cols-[120px_1fr_auto] items-center gap-4 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                {/* คอลัมน์ 1: Type badge */}
+                <span className={`rounded-md px-2.5 py-1 text-xs font-semibold text-center w-fit ${DEPT_TYPE_COLORS[d.dept_type] || 'bg-gray-100 text-gray-700'}`}>
                   {d.dept_type}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{d.dept_name}</p>
+                {/* คอลัมน์ 2: Name + Parent */}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{d.dept_name}</p>
                   {d.parent_name && (
-                    <p className="text-xs text-gray-400">สังกัด: {d.parent_name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">↳ {d.parent_name}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                {/* คอลัมน์ 3: Actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   {d.usage_count > 0 && (
-                    <span className="text-xs text-gray-400">{d.usage_count} users</span>
+                    <span className="text-xs text-gray-400 mr-1">{d.usage_count} users</span>
                   )}
                   <DeptFormDialog dept={d} parents={depts} />
                   <Button
