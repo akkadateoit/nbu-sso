@@ -86,6 +86,20 @@ function showProfile(payload, token) {
 }
 
 window.onload = function () {
+  // ── Event listeners (แทน onclick ใน HTML ที่ CSP บล็อก) ──
+  var btnLogin  = document.querySelector('.btn-login');
+  var tokenRaw  = document.getElementById('token-raw');
+  var tokenHint = document.querySelector('.token-expand-hint');
+  var btnCopy   = document.querySelector('.btn-copy');
+  var btnLogout = document.querySelector('.btn-logout');
+
+  if (btnLogin)  btnLogin.addEventListener('click', loginWithSSO);
+  if (tokenRaw)  tokenRaw.addEventListener('click', toggleToken);
+  if (tokenHint) tokenHint.addEventListener('click', toggleToken);
+  if (btnCopy)   btnCopy.addEventListener('click', copyToken);
+  if (btnLogout) btnLogout.addEventListener('click', logout);
+
+
   var params = new URLSearchParams(window.location.search);
   var token  = params.get('token');
 
