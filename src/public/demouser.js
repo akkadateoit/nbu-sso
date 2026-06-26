@@ -4,8 +4,11 @@ var _token    = null;
 
 function decode(token) {
   try {
-    var b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(b64));
+    var b64    = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    var binary = atob(b64);
+    var bytes  = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
   } catch (e) { return null; }
 }
 
