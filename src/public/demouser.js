@@ -38,7 +38,7 @@ function logout() {
 
 function toggleToken() {
   var el = document.getElementById('token-raw');
-  el.classList.toggle('expanded');
+  if (el) el.classList.toggle('expanded');
 }
 
 function copyToken() {
@@ -72,16 +72,16 @@ function showProfile(payload, token) {
   var avatarEl = document.getElementById('avatar-letter');
   if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
 
-  setText('p-name',    name);
-  setText('p-email',   payload.email);
-  setText('p2-name',   name);
-  setText('p2-email',  payload.email);
-  setText('p2-app',    payload.application_id);
-  setText('p2-sub',    payload.sub);
-  setText('p2-role',   perm.role);
-  setText('p2-scope',  perm.scope_level);
-  setText('p2-dept',   perm.allowed_dept_name);
-  setText('p2-deptid', perm.allowed_dept_id != null ? '#' + perm.allowed_dept_id : '—');
+  setText('p-name',     name);
+  setText('p-email',    payload.email);
+  setText('p2-name',    name);
+  setText('p2-email',   payload.email);
+  setText('p2-app',     payload.application_id);
+  setText('p2-sub',     payload.sub);
+  setText('p2-role',    perm.role);
+  setText('p2-scope',   perm.scope_level);
+  setText('p2-dept',    perm.allowed_dept_name);
+  setText('p2-deptid',  perm.allowed_dept_id != null ? '#' + perm.allowed_dept_id : '—');
   setText('expiry-text', payload.exp ? expiryText(payload.exp) : '—');
 
   var tokenRaw = document.getElementById('token-raw');
@@ -89,7 +89,7 @@ function showProfile(payload, token) {
 }
 
 window.onload = function () {
-  // ── Event listeners (แทน onclick ใน HTML ที่ CSP บล็อก) ──
+  // ── ผูก event listeners ทั้งหมด (ไม่ใช้ onclick ใน HTML เพราะ CSP บล็อก) ──
   var btnLogin  = document.querySelector('.btn-login');
   var tokenRaw  = document.getElementById('token-raw');
   var tokenHint = document.querySelector('.token-expand-hint');
@@ -102,7 +102,7 @@ window.onload = function () {
   if (btnCopy)   btnCopy.addEventListener('click', copyToken);
   if (btnLogout) btnLogout.addEventListener('click', logout);
 
-
+  // ── ตรวจ token ก่อนแสดง view (ป้องกัน flash of login screen) ──
   var params = new URLSearchParams(window.location.search);
   var token  = params.get('token');
 
@@ -117,7 +117,14 @@ window.onload = function () {
 
   if (!token) token = sessionStorage.getItem(TOKEN_KEY);
 
+  // ซ่อน loading spinner
+  var loadingEl = document.getElementById('loading-view');
+  if (loadingEl) loadingEl.style.display = 'none';
+
   if (token && !isExpired(token)) {
     showProfile(decode(token), token);
+  } else {
+    // แสดง login view เมื่อรู้แน่ว่าไม่มี token
+    document.getElementById('login-view').style.display = 'flex';
   }
 };
