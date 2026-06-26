@@ -111,6 +111,16 @@ async function setUserActive(userId, isActive) {
   return rows[0] || null;
 }
 
+async function createUser(email, name) {
+  const { rows } = await pool.query(`
+    INSERT INTO users (email, name)
+    VALUES ($1, $2)
+    ON CONFLICT (email) DO NOTHING
+    RETURNING id, email, name, is_active
+  `, [email, name || email.split('@')[0]]);
+  return rows[0] || null;
+}
+
 async function deleteUser(userId) {
   const { rows } = await pool.query(`
     DELETE FROM users WHERE id = $1
@@ -243,7 +253,7 @@ async function writeAuditLog({ actedById, actedByEmail, action, targetEmail, app
 module.exports = {
   getStats, getRecentAuditLogs,
   listApps, createApp, updateApp,
-  listUsers, getUserPermissions, setUserActive, deleteUser,
+  listUsers, createUser, getUserPermissions, setUserActive, deleteUser,
   grantPermission, updatePermission, revokePermission,
   listRoles, createRole, updateRole, deleteRole,
   listDepartments, createDepartment, updateDepartment, deleteDepartment,

@@ -81,6 +81,25 @@ router.patch('/apps/:id', async (req, res) => {
 });
 
 // ── Users ─────────────────────────────────────────────────────
+router.post('/users', async (req, res) => {
+  const { email, name } = req.body;
+  if (!email) return res.status(400).json({ error: 'ต้องส่ง email' });
+  if (!email.endsWith('@northbkk.ac.th'))
+    return res.status(400).json({ error: 'อีเมลต้องลงท้ายด้วย @northbkk.ac.th เท่านั้น' });
+  try {
+    const user = await svc.createUser(email.toLowerCase().trim(), name?.trim() || '');
+    if (!user) return res.status(409).json({ error: `อีเมล ${email} มีในระบบแล้ว` });
+    await svc.writeAuditLog({
+      actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
+      action: 'CREATE_USER', targetEmail: email,
+      detail: { name: user.name },
+    });
+    res.status(201).json(user);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/users', async (req, res) => {
   const { search = '', page = '1', limit = '20' } = req.query;
   try {

@@ -45,6 +45,93 @@ function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = 
   )
 }
 
+// ── Add User Dialog ────────────────────────────────────────────
+function AddUserDialog() {
+  const [open,  setOpen]  = useState(false)
+  const [email, setEmail] = useState('')
+  const [name,  setName]  = useState('')
+  const qc = useQueryClient()
+
+  const add = useMutation({
+    mutationFn: () => api.post('/users', { email: email.trim(), name: name.trim() }).then(r => r.data),
+    onSuccess: (user) => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      setOpen(false)
+      setEmail('')
+      setName('')
+    },
+  })
+
+  function handleOpen(v) {
+    if (v) { setEmail(''); setName(''); add.reset() }
+    setOpen(v)
+  }
+
+  const emailValid = email.endsWith('@northbkk.ac.th')
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="h-4 w-4" />เพิ่มผู้ใช้ล่วงหน้า</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>เพิ่มบุคลากรล่วงหน้า</DialogTitle>
+          <DialogDescription>
+            เพิ่ม account บุคลากรใหม่ก่อนวันเริ่มงาน เพื่อกำหนดสิทธิ์แอปได้ทันที
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>อีเมล Google Workspace *</Label>
+            <Input
+              type="email"
+              placeholder="firstname.l@northbkk.ac.th"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className={email && !emailValid ? 'border-red-400 focus-visible:ring-red-400' : ''}
+            />
+            {email && !emailValid && (
+              <p className="text-xs text-red-500">อีเมลต้องลงท้ายด้วย @northbkk.ac.th</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>ชื่อ-นามสกุล <span className="text-gray-400 font-normal">(ไม่บังคับ)</span></Label>
+            <Input
+              placeholder="จะ sync อัตโนมัติเมื่อ Login ครั้งแรก"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          </div>
+
+          {/* Info box */}
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 space-y-1">
+            <p className="font-semibold">ℹ️ หลังเพิ่มผู้ใช้แล้ว</p>
+            <p>• ค้นหาชื่อในรายการ แล้วกด <span className="font-semibold">เพิ่มสิทธิ์</span> เพื่อกำหนดแอปที่เข้าถึงได้</p>
+            <p>• ชื่อจะ update อัตโนมัติจาก Google เมื่อผู้ใช้ Login ครั้งแรก</p>
+          </div>
+
+          {add.error && (
+            <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+              {add.error.response?.data?.error || 'เกิดข้อผิดพลาด'}
+            </p>
+          )}
+
+          <Button
+            className="w-full"
+            onClick={() => add.mutate()}
+            disabled={!email || !emailValid || add.isPending}
+          >
+            {add.isPending ? 'กำลังเพิ่ม...' : 'เพิ่มผู้ใช้'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Grant Permission Dialog ────────────────────────────────────
 function GrantDialog({ user }) {
   const [open, setOpen] = useState(false)
@@ -312,7 +399,7 @@ export default function Users() {
         <p className="text-sm text-gray-500 mt-1">จัดการสิทธิ์ผู้ใช้ทุกคนในระบบ NBU SSO</p>
       </div>
 
-      {/* Search bar */}
+      {/* Search bar + Add button */}
       <div className="flex items-center gap-2">
         <div className="relative max-w-sm w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
@@ -334,6 +421,9 @@ export default function Users() {
         <span className="text-sm text-gray-400 shrink-0">
           {filtered.length} / {allUsers.length} คน
         </span>
+        <div className="ml-auto">
+          <AddUserDialog />
+        </div>
       </div>
 
       {/* User list */}
