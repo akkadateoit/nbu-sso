@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NBU SSO — Demo3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #060b18;
+      --card:    rgba(255,255,255,.05);
+      --border:  rgba(255,255,255,.08);
+      --border2: rgba(255,255,255,.13);
+      --purple:  #a855f7;
+      --violet:  #8b5cf6;
+      --pink:    #ec4899;
+      --text:    #f1f5f9;
+      --muted:   #94a3b8;
+      --dim:     #475569;
+    }
+    body {
+      font-family: 'Sarabun', 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    .ambient {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 700px 500px at 15% 25%, rgba(168,85,247,.12) 0%, transparent 70%),
+        radial-gradient(ellipse 500px 400px at 80% 70%, rgba(236,72,153,.08) 0%, transparent 70%);
+    }
+    .grid-bg {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 110% 100% at 50% 0%, black 40%, transparent 100%);
+    }
+    nav {
+      position: relative; z-index: 10;
+      background: rgba(6,11,24,.8); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 clamp(1.5rem,5vw,3rem);
+      display: flex; align-items: center; justify-content: space-between; height: 60px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-icon {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--violet), var(--pink));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 16px rgba(168,85,247,.4);
+    }
+    .nav-name { font-size: 14px; font-weight: 700; }
+    .demo-badge {
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid rgba(168,85,247,.3); border-radius: 999px;
+      background: rgba(168,85,247,.08); padding: 4px 12px;
+      font-size: 11px; font-weight: 700; color: #c084fc;
+      letter-spacing: .5px; text-transform: uppercase;
+    }
+    .auto-dot { width: 6px; height: 6px; border-radius: 50%; background: #c084fc; animation: blink 2s ease infinite; }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+    main {
+      flex: 1; position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 48px clamp(1rem,4vw,2rem);
+    }
+    #loading-view { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.08);
+      border-top-color: var(--purple);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: var(--muted); }
+    #profile-view { display: none; width: 100%; max-width: 680px; }
+    .profile-header { text-align: center; margin-bottom: 28px; }
+    .avatar {
+      width: 72px; height: 72px; border-radius: 20px; margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--violet), var(--pink));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800; color: white; font-family: 'Inter', sans-serif;
+      box-shadow: 0 0 32px rgba(168,85,247,.4);
+    }
+    .profile-header h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -.5px; margin-bottom: 4px; }
+    .profile-header .email { font-size: 14px; color: var(--muted); }
+    .success-badge {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+      border: 1px solid rgba(168,85,247,.35); border-radius: 999px;
+      background: rgba(168,85,247,.1); padding: 5px 14px;
+      font-size: 12px; font-weight: 700; color: #c084fc;
+    }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 540px) { .info-grid { grid-template-columns: 1fr; } }
+    .info-card {
+      border: 1px solid var(--border2); border-radius: 16px;
+      background: var(--card); backdrop-filter: blur(8px); overflow: hidden;
+    }
+    .info-card-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .head-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .info-card-head span { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .info-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,.03); }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+    .info-value { font-size: 13px; font-weight: 600; text-align: right; max-width: 200px; word-break: break-all; }
+    .role-pill {
+      display: inline-flex; border-radius: 8px; padding: 4px 10px;
+      font-size: 12px; font-weight: 700; font-family: 'Inter', monospace;
+      background: rgba(168,85,247,.15); border: 1px solid rgba(168,85,247,.3); color: #c084fc;
+    }
+    .scope-pill {
+      display: inline-flex; border-radius: 8px; padding: 4px 10px;
+      font-size: 12px; font-weight: 700; font-family: 'Inter', monospace;
+      background: rgba(236,72,153,.12); border: 1px solid rgba(236,72,153,.25); color: #f9a8d4;
+    }
+    .token-card {
+      border: 1px solid var(--border2); border-radius: 16px;
+      background: var(--card); backdrop-filter: blur(8px); overflow: hidden; margin-bottom: 14px;
+    }
+    .token-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .token-head-left { display: flex; align-items: center; gap: 8px; }
+    .token-head span { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .expiry-badge { font-size: 11px; font-weight: 700; font-family: 'Inter', monospace; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(168,85,247,.3); background: rgba(168,85,247,.1); color: #c084fc; }
+    .token-body { padding: 12px 16px; }
+    .token-raw { font-family: 'Inter', monospace; font-size: 10px; color: var(--dim); word-break: break-all; line-height: 1.6; background: rgba(0,0,0,.25); border-radius: 8px; padding: 10px 12px; max-height: 64px; overflow: hidden; cursor: pointer; transition: max-height .3s; }
+    .token-raw.expanded { max-height: 200px; }
+    .token-expand-hint { font-size: 11px; color: var(--dim); text-align: center; margin-top: 8px; cursor: pointer; }
+    .actions { display: flex; gap: 10px; }
+    .btn-copy {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px; border-radius: 12px; border: 1px solid var(--border2);
+      background: var(--card); color: var(--muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: 'Sarabun', sans-serif; transition: all .2s;
+    }
+    .btn-copy:hover { background: rgba(255,255,255,.07); color: var(--text); }
+    .btn-logout {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px; border-radius: 12px; border: 1px solid rgba(239,68,68,.3);
+      background: rgba(239,68,68,.08); color: #f87171; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: 'Sarabun', sans-serif; transition: all .2s;
+    }
+    .btn-logout:hover { background: rgba(239,68,68,.15); }
+    footer {
+      position: relative; z-index: 1; border-top: 1px solid var(--border);
+      padding: 20px clamp(1.5rem,5vw,3rem); text-align: center; font-size: 12px; color: var(--dim);
+    }
+  </style>
+</head>
+<body>
+<div class="ambient"></div>
+<div class="grid-bg"></div>
+
+<nav>
+  <a class="nav-brand" href="/">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="nav-name">NBU SSO</div>
+  </a>
+  <div class="demo-badge">
+    <div class="auto-dot"></div>
+    Demo 3
+  </div>
+</nav>
+
+<main>
+  <div id="loading-view">
+    <div class="spinner"></div>
+    <p class="loading-text">กำลังตรวจสอบสิทธิ์...</p>
+    <button id="relogin-btn" style="display:none;margin-top:20px;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;border:1px solid rgba(168,85,247,.4);background:rgba(168,85,247,.1);color:#c084fc;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      เข้าสู่ระบบใหม่
+    </button>
+  </div>
+
+  <div id="profile-view">
+    <div class="profile-header">
+      <div class="avatar" id="avatar-letter">A</div>
+      <h2 id="p-name">—</h2>
+      <div class="email" id="p-email">—</div>
+      <div class="success-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Login สำเร็จ — Demo 3
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-head">
+          <div class="head-icon" style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.25)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <span>ข้อมูลผู้ใช้</span>
+        </div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>ชื่อ</span><span class="info-value" id="p2-name">—</span></div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>อีเมล</span><span class="info-value" style="font-size:11px" id="p2-email">—</span></div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>App</span><span class="info-value" style="font-family:'Inter',monospace;font-size:11px;color:#c084fc" id="p2-app">—</span></div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>User ID</span><span class="info-value" style="font-family:'Inter',monospace;color:var(--dim)" id="p2-sub">—</span></div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-head">
+          <div class="head-icon" style="background:rgba(236,72,153,.15);border:1px solid rgba(236,72,153,.25)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <span>สิทธิ์การใช้งาน</span>
+        </div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Role</span><span id="p2-role" class="role-pill">—</span></div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Scope</span><span id="p2-scope" class="scope-pill">—</span></div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>หน่วยงาน</span><span class="info-value" id="p2-dept">—</span></div>
+        <div class="info-row"><span class="info-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Dept ID</span><span class="info-value" style="font-family:'Inter',monospace;color:var(--muted)" id="p2-deptid">—</span></div>
+      </div>
+    </div>
+
+    <div class="token-card">
+      <div class="token-head">
+        <div class="token-head-left">
+          <div class="head-icon" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <span>JWT Token (app_id: demo3)</span>
+        </div>
+        <span class="expiry-badge" id="expiry-text">—</span>
+      </div>
+      <div class="token-body">
+        <div class="token-raw" id="token-raw">loading...</div>
+        <p class="token-expand-hint">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle"><polyline points="6 9 12 15 18 9"/></svg>
+          คลิกเพื่อดู / ซ่อน token เต็ม
+        </p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-copy">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        คัดลอก Token
+      </button>
+      <button class="btn-logout">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ออกจากระบบ
+      </button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  NBU SSO Demo3 &nbsp;·&nbsp; app_id: demo3 &nbsp;·&nbsp;
+  สำนักเทคโนโลยีสารสนเทศ มหาวิทยาลัยนอร์ทกรุงเทพ
+</footer>
+
+<script src="/demouser3.js"></script>
+</body>
+</html>
