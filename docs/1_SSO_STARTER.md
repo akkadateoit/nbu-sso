@@ -47,6 +47,96 @@ window.onload = function() {
 
 ---
 
+## ⚠️ ข้อควรระวัง — Auto-redirect (อ่านก่อนพัฒนา)
+
+> **ถ้าเลือกแบบที่ 1 (Auto-redirect) มีเรื่องที่ต้องระวัง 3 ข้อนี้เสมอ**
+
+### 1. Logout ต้องมี Logout Flag
+
+❌ **ผิด** — logout แล้ว redirect กลับ SSO ทันที จะ login กลับมาเองเพราะ Google session ยังอยู่
+```javascript
+function logout() {
+  sessionStorage.removeItem('nbu_token')
+  loginWithSSO()  // ← อย่าทำแบบนี้! วนซ้ำไม่สิ้นสุด
+}
+```
+
+✅ **ถูก** — logout แล้วเก็บ flag ไว้ป้องกัน auto-redirect
+```javascript
+const LOGOUT_FLAG = 'nbu_APP_ID_logged_out'  // ใช้ชื่อเฉพาะของแอปตัวเอง
+
+function logout() {
+  sessionStorage.removeItem('nbu_token')
+  sessionStorage.setItem(LOGOUT_FLAG, '1')   // ← เพิ่มบรรทัดนี้
+  showLoggedOutScreen()                       // แสดงหน้า "ออกจากระบบแล้ว"
+}
+
+function relogin() {
+  sessionStorage.removeItem(LOGOUT_FLAG)      // ← ล้าง flag ก่อน redirect
+  loginWithSSO()
+}
+```
+
+---
+
+### 2. window.onload ต้องตรวจ 3 กรณีเสมอ
+
+```javascript
+window.onload = function() {
+  const token = sessionStorage.getItem('nbu_token')
+
+  if (token && !isExpired(token)) {
+    showApp(decodeToken(token))                    // กรณีที่ 1: มี token → แสดงแอป
+
+  } else if (sessionStorage.getItem(LOGOUT_FLAG)) {
+    showLoggedOutScreen()                          // กรณีที่ 2: logout ไปแล้ว → อย่า redirect!
+
+  } else {
+    loginWithSSO()                                 // กรณีที่ 3: ไม่มี token → auto-redirect
+  }
+}
+```
+
+> ถ้าไม่ตรวจกรณีที่ 2 → refresh หน้า "ออกจากระบบแล้ว" จะ login กลับมาทันที
+
+---
+
+### 3. Decode Token ต้องรองรับ UTF-8 (ภาษาไทย)
+
+❌ **ผิด** — `atob()` อ่านภาษาไทยไม่ได้ ชื่อหน่วยงานจะเป็นอักขระแปลก
+```javascript
+function decodeToken(token) {
+  return JSON.parse(atob(token.split('.')[1]))  // ← พังถ้า payload มีภาษาไทย
+}
+```
+
+✅ **ถูก** — ใช้ TextDecoder แปลง UTF-8
+```javascript
+function decodeToken(token) {
+  const b64    = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+  const binary = atob(b64)
+  const bytes  = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return JSON.parse(new TextDecoder('utf-8').decode(bytes))
+}
+```
+
+---
+
+### 4. Logout ในระบบ SSO ≠ Logout จริงทั้งหมด
+
+```
+logout() ใน App → ลบ token เฉพาะแอปนี้
+                 → Google session ยังอยู่
+                 → App อื่นยังใช้ได้ปกติ
+                 → กดปุ่ม "เข้าสู่ระบบใหม่" → เข้าได้ทันที (ไม่ต้องกรอก password)
+
+แนะนำ: แสดงข้อความให้ผู้ใช้รู้
+"ออกจากระบบบนอุปกรณ์นี้แล้ว หากใช้คอมสาธารณะ กรุณาปิด Browser ด้วย"
+```
+
+---
+
 ## ขั้นตอน Login Flow (แอปย่อยต้องทำ)
 
 ```
