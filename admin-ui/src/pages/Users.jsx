@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -293,12 +293,17 @@ function UserRow({ user }) {
 // ── Users Page ────────────────────────────────────────────────
 export default function Users() {
   const [search, setSearch] = useState('')
-  const [query,  setQuery]  = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['users', query],
-    queryFn:  () => api.get('/users', { params: { search: query, limit: 50 } }).then(r => r.data),
+    queryKey: ['users'],
+    queryFn:  () => api.get('/users', { params: { limit: 500 } }).then(r => r.data),
   })
+
+  const allUsers = data?.users || []
+  const filtered = allUsers.filter(u =>
+    u.email.toLowerCase().includes(search.toLowerCase()) ||
+    u.name.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div className="p-8 space-y-6">
@@ -308,35 +313,38 @@ export default function Users() {
       </div>
 
       {/* Search bar */}
-      <div className="flex gap-2">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-2">
+        <div className="relative max-w-sm w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
           <Input
-            className="pl-8"
+            className="pl-8 pr-8"
             placeholder="ค้นหา email หรือชื่อ..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && setQuery(search)}
           />
+          {search && (
+            <button
+              className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+              onClick={() => setSearch('')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <Button variant="outline" onClick={() => setQuery(search)}>ค้นหา</Button>
-        {query && (
-          <Button variant="ghost" onClick={() => { setSearch(''); setQuery('') }}>ล้าง</Button>
-        )}
+        <span className="text-sm text-gray-400 shrink-0">
+          {filtered.length} / {allUsers.length} คน
+        </span>
       </div>
 
       {/* User list */}
       <div className="space-y-3">
         {isLoading ? (
           <p className="text-sm text-gray-400">กำลังโหลด...</p>
-        ) : (data?.users || []).map(user => (
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-gray-400">ไม่พบผู้ใช้ที่ค้นหา</p>
+        ) : filtered.map(user => (
           <UserRow key={user.id} user={user} />
         ))}
-        {!isLoading && data && (
-          <p className="text-xs text-gray-400 text-right">
-            แสดง {data.users?.length ?? 0} จาก {data.total} รายการ
-          </p>
-        )}
       </div>
     </div>
   )

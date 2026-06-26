@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, ShieldCheck, Building2, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, ShieldCheck, Building2, AlertCircle, Search, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -108,10 +108,18 @@ function RoleFormDialog({ role, onDone }) {
 
 function RolesSection() {
   const qc = useQueryClient()
+  const [search, setSearch] = useState('')
+
   const { data: roles = [], isLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: () => api.get('/roles').then(r => r.data),
   })
+
+  const filtered = roles.filter(r =>
+    r.role_key.toLowerCase().includes(search.toLowerCase()) ||
+    r.role_name.toLowerCase().includes(search.toLowerCase()) ||
+    (r.description || '').toLowerCase().includes(search.toLowerCase())
+  )
 
   const remove = useMutation({
     mutationFn: key => api.delete(`/roles/${key}`),
@@ -121,19 +129,42 @@ function RolesSection() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-4">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck className="h-5 w-5 text-blue-600" />
-          Roles (ตำแหน่ง/สิทธิ์)
-        </CardTitle>
-        <RoleFormDialog />
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-5 w-5 text-blue-600" />
+            Roles (ตำแหน่ง/สิทธิ์)
+          </CardTitle>
+          <RoleFormDialog />
+        </div>
+        {/* Search */}
+        <div className="relative mt-3">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Input
+            className="pl-8 pr-8 h-8 text-sm"
+            placeholder="ค้นหา Role..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600"
+              onClick={() => setSearch('')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
           <p className="px-6 pb-4 text-sm text-gray-500">กำลังโหลด...</p>
         ) : (
           <div className="divide-y">
-            {roles.map((role, i) => (
+            {filtered.length === 0 && (
+              <p className="px-6 py-4 text-sm text-gray-400">ไม่พบ Role ที่ค้นหา</p>
+            )}
+            {filtered.map((role, i) => (
               <div key={role.role_key} className={`flex items-start gap-3 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
                 <code className="mt-0.5 shrink-0 rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-white">
                   {role.role_key}
@@ -160,7 +191,6 @@ function RolesSection() {
                 </div>
               </div>
             ))}
-            {!roles.length && <p className="px-6 pb-4 text-sm text-gray-400">ยังไม่มี Role</p>}
           </div>
         )}
       </CardContent>
