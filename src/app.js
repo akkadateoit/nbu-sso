@@ -65,11 +65,14 @@ app.use(session({
 app.use(passport.initialize());
 
 // ======================================================
+// Static files — landing page assets (/sso.js ฯลฯ)
+// วางไว้ก่อน Routes เพื่อให้ไฟล์ใน public/ ถูก serve ได้
+// ======================================================
+app.use(express.static(require('path').join(__dirname, 'public')));
+
+// ======================================================
 // Routes
 // ======================================================
-app.get('/', (_req, res) => {
-  res.sendFile(require('path').join(__dirname, 'public', 'index.html'));
-});
 app.use('/', authRouter);
 app.use('/api/v1', apiRouter);
 app.use('/api/v1/admin', adminRouter);
@@ -94,7 +97,7 @@ app.use((req, res) => {
 // ======================================================
 // Global Error Handler
 // ======================================================
-app.use((err, req, res, _next) => {
+app.use((err, _req, res, _next) => {
   console.error('[App] Unhandled error:', err);
   res.status(500).json({
     error:   'INTERNAL_ERROR',
