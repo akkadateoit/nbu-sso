@@ -99,7 +99,7 @@ router.get('/login', (req, res) => {
 router.get('/auth/google',
   passport.authenticate('google', {
     scope: ['openid', 'email', 'profile'],
-    prompt: 'select_account',  // บังคับให้เลือก account ทุกครั้ง
+    hd: 'northbkk.ac.th',
   })
 );
 
