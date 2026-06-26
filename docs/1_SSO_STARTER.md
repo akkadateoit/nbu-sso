@@ -16,6 +16,37 @@
 
 ---
 
+## UX Pattern — เลือก 1 แบบก่อนพัฒนา
+
+แอปย่อยเลือกได้ 2 แบบ **แนะนำแบบที่ 1** สำหรับระบบ Internal มหาวิทยาลัย
+
+### แบบที่ 1 — Auto-redirect (แนะนำ ✅)
+ผู้ใช้เปิดแอป → ตรวจ token → ถ้าไม่มีให้ redirect ผ่าน SSO ทันที **ไม่มีปุ่มให้กด**
+เมื่อ login app แรกแล้ว การเปิด app อื่นจะผ่าน SSO อัตโนมัติ < 1 วินาที ผู้ใช้ไม่รู้สึกว่าต้อง login ซ้ำ
+
+```javascript
+window.onload = function() {
+  const token = sessionStorage.getItem('nbu_token')
+  if (!token || isExpired(token)) {
+    // redirect ทันที ไม่แสดงหน้าอะไรเลย
+    loginWithSSO()
+  } else {
+    showApp(decodeToken(token))
+  }
+}
+```
+
+### แบบที่ 2 — แสดงปุ่ม Login
+ผู้ใช้เปิดแอป → เห็นหน้า Login พร้อมปุ่ม → คลิกปุ่มเอง → ผ่าน SSO
+ใช้เมื่อต้องการให้ผู้ใช้ยืนยันก่อนเข้าแอป (เช่น แอปที่มีข้อมูลสำคัญมาก)
+
+```javascript
+// แสดงปุ่มก่อน ผู้ใช้คลิกเองเมื่อพร้อม
+<button onclick="loginWithSSO()">เข้าสู่ระบบด้วย NBU SSO</button>
+```
+
+---
+
 ## ขั้นตอน Login Flow (แอปย่อยต้องทำ)
 
 ```
@@ -23,7 +54,7 @@
 2. ถ้าไม่มี → Redirect ไป:
    https://sso.northbkk.ac.th/login?app_id=APP_ID&redirect_uri=CALLBACK_URL
 
-3. SSO พา Login ด้วย Google Workspace
+3. SSO พา Login ด้วย Google Workspace (@northbkk.ac.th เท่านั้น)
 4. SSO ออก JWT Token → Redirect กลับมาที่ CALLBACK_URL?token=eyJ...
 5. แอปรับ token → เก็บไว้ → ใช้งาน
 ```
