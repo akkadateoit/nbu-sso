@@ -476,18 +476,43 @@ function UserRow({ user }) {
 
 // ── Users Page ────────────────────────────────────────────────
 export default function Users() {
-  const [search, setSearch] = useState('')
+  const [search,     setSearch]     = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [deptFilter, setDeptFilter] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn:  () => api.get('/users', { params: { limit: 500 } }).then(r => r.data),
   })
 
+  // Master data สำหรับ dropdown
+  const { data: roles = [] } = useQuery({ queryKey: ['roles'], queryFn: () => api.get('/roles').then(r => r.data) })
+  const { data: depts = [] } = useQuery({ queryKey: ['depts'], queryFn: () => api.get('/departments').then(r => r.data) })
+
   const allUsers = data?.users || []
-  const filtered = allUsers.filter(u =>
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.name.toLowerCase().includes(search.toLowerCase())
-  )
+
+  // Filter รวม: search + role + scope
+  const filtered = allUsers.filter(u => {
+    const matchSearch = !search ||
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      u.name.toLowerCase().includes(search.toLowerCase())
+
+    const matchRole = !roleFilter ||
+      (u.roles || []).includes(roleFilter)
+
+    const matchDept = !deptFilter ||
+      (u.dept_ids || []).map(String).includes(deptFilter)
+
+    return matchSearch && matchRole && matchDept
+  })
+
+  const hasFilter = search || roleFilter || deptFilter
+
+  function clearAll() {
+    setSearch('')
+    setRoleFilter('')
+    setDeptFilter('')
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -496,39 +521,101 @@ export default function Users() {
         <p className="text-sm text-gray-500 mt-1">จัดการสิทธิ์ผู้ใช้ทุกคนในระบบ NBU SSO</p>
       </div>
 
-      {/* Search bar + Add button */}
-      <div className="flex items-center gap-2">
-        <div className="relative max-w-sm w-full">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Search */}
+        <div className="relative w-56">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
           <Input
-            className="pl-8 pr-8"
-            placeholder="ค้นหา email หรือชื่อ..."
+            className="pl-8 pr-8 h-9"
+            placeholder="ค้นหา email / ชื่อ..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
           {search && (
-            <button
-              className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
-              onClick={() => setSearch('')}
-            >
+            <button className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600" onClick={() => setSearch('')}>
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
-        <span className="text-sm text-gray-400 shrink-0">
+
+        {/* Role dropdown */}
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="w-44 h-9">
+            <SelectValue placeholder="ทุก Role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">ทุก Role</SelectItem>
+            {roles.map(r => (
+              <SelectItem key={r.role_key} value={r.role_key}>
+                {r.role_key} — {r.role_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Scope dropdown */}
+        <Select value={deptFilter} onValueChange={setDeptFilter}>
+          <SelectTrigger className="w-52 h-9">
+            <SelectValue placeholder="ทุกหน่วยงาน" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">ทุกหน่วยงาน</SelectItem>
+            {depts.map(d => (
+              <SelectItem key={d.id} value={String(d.id)}>
+                [{d.dept_type}] {d.dept_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* ล้าง filter */}
+        {hasFilter && (
+          <button onClick={clearAll} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+            <X className="h-3.5 w-3.5" />ล้างทั้งหมด
+          </button>
+        )}
+
+        {/* นับผลลัพธ์ */}
+        <span className="text-sm text-gray-400 ml-1">
           {filtered.length} / {allUsers.length} คน
         </span>
+
         <div className="ml-auto">
           <AddUserDialog />
         </div>
       </div>
+
+      {/* Active filter badges */}
+      {hasFilter && (
+        <div className="flex flex-wrap gap-2">
+          {search && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-medium">
+              ค้นหา: "{search}"
+              <button onClick={() => setSearch('')}><X className="h-3 w-3" /></button>
+            </span>
+          )}
+          {roleFilter && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-700 px-3 py-1 text-xs font-medium">
+              Role: {roleFilter}
+              <button onClick={() => setRoleFilter('')}><X className="h-3 w-3" /></button>
+            </span>
+          )}
+          {deptFilter && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
+              Scope: {depts.find(d => String(d.id) === deptFilter)?.dept_name || deptFilter}
+              <button onClick={() => setDeptFilter('')}><X className="h-3 w-3" /></button>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* User list */}
       <div className="space-y-3">
         {isLoading ? (
           <p className="text-sm text-gray-400">กำลังโหลด...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-gray-400">ไม่พบผู้ใช้ที่ค้นหา</p>
+          <p className="text-sm text-gray-400">ไม่พบผู้ใช้ที่ตรงกับเงื่อนไข</p>
         ) : filtered.map(user => (
           <UserRow key={user.id} user={user} />
         ))}

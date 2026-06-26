@@ -66,12 +66,20 @@ async function updateApp(id, fields) {
 
 // ── Users ─────────────────────────────────────────────────────
 async function listUsers({ search = '', page = 1, limit = 20 } = {}) {
-  const offset = (page - 1) * limit;
+  const offset  = (page - 1) * limit;
   const pattern = `%${search}%`;
   const { rows } = await pool.query(`
     SELECT
       u.id, u.email, u.name, u.is_active, u.created_at,
-      COUNT(uap.id)::int AS permission_count
+      COUNT(uap.id)::int AS permission_count,
+      COALESCE(
+        array_agg(DISTINCT uap.role_key)
+          FILTER (WHERE uap.role_key IS NOT NULL), '{}'
+      ) AS roles,
+      COALESCE(
+        array_agg(DISTINCT uap.scope_dept_id)
+          FILTER (WHERE uap.scope_dept_id IS NOT NULL), '{}'
+      ) AS dept_ids
     FROM users u
     LEFT JOIN user_app_permissions uap ON uap.user_id = u.id
     WHERE u.email ILIKE $1 OR u.name ILIKE $1
