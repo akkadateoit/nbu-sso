@@ -4,24 +4,24 @@ steps:
     args:
       - build
       - '-t'
-      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
+      - 'asia-southeast3-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
       - '.'
 
   # Push to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - push
-      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
+      - 'asia-southeast3-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
 
-  # Deploy to Cloud Run (asia-southeast1)
+  # Deploy to Cloud Run (asia-southeast3)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - run
       - deploy
       - nbu-sso
-      - '--image=asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
-      - '--region=asia-southeast1'
+      - '--image=asia-southeast3-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
+      - '--region=asia-southeast3'
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--port=3000'
@@ -32,7 +32,7 @@ steps:
       - '--timeout=60'
 
 images:
-  - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
+  - 'asia-southeast3-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/nbu-sso:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
