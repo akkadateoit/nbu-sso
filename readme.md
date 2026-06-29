@@ -48,3 +48,16 @@ window.onload = function() {
   ไม่ต้องคลิกปุ่มใดๆ
   ไม่ต้องกรอก password (Google session อยู่)
 ใน docs/1_SSO_STARTER.md ที่เตรียมไว้ให้ developer อ่าน มี code ตัวอย่างทั้ง 2 แบบ สามารถแนะนำ developer แต่ละ App ให้ใช้ Auto-redirect ได้เลยครับ
+
+
+##--------------------------------
+
+ ## https://github.com/akkadateoit/nbu-sso.git 
+
+  ```
+git add .
+git commit -m "comment"
+git push origin main
+```
+
+เมื่อ push แล้ว trigger ทำงาน build อัตโนมัติ 
