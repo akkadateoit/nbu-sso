@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, ShieldCheck, Building2, AlertCircle, Search, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, ShieldCheck, Building2, AlertCircle, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +26,28 @@ function ErrorMsg({ error }) {
     <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
       <AlertCircle className="h-4 w-4 shrink-0" />
       {msg}
+    </div>
+  )
+}
+
+// ── Mini Pagination ───────────────────────────────────────────
+const PAGE_SIZE = 8
+
+function MiniPagination({ total, page, onPage }) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  if (totalPages <= 1) return null
+  return (
+    <div className="flex items-center justify-between px-6 py-3 border-t bg-white text-sm text-gray-500">
+      <span>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} จาก {total}</span>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="px-2 font-medium text-gray-700">{page}/{totalPages}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -109,6 +131,7 @@ function RoleFormDialog({ role, onDone }) {
 function RolesSection() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
+  const [page,   setPage]   = useState(1)
 
   const { data: roles = [], isLoading } = useQuery({
     queryKey: ['roles'],
@@ -120,6 +143,10 @@ function RolesSection() {
     r.role_name.toLowerCase().includes(search.toLowerCase()) ||
     (r.description || '').toLowerCase().includes(search.toLowerCase())
   )
+
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  function handleSearch(v) { setSearch(v); setPage(1) }
 
   const remove = useMutation({
     mutationFn: key => api.delete(`/roles/${key}`),
@@ -137,20 +164,16 @@ function RolesSection() {
           </CardTitle>
           <RoleFormDialog />
         </div>
-        {/* Search */}
         <div className="relative mt-3">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
           <Input
             className="pl-8 pr-8 h-8 text-sm"
             placeholder="ค้นหา Role..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => handleSearch(e.target.value)}
           />
           {search && (
-            <button
-              className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600"
-              onClick={() => setSearch('')}
-            >
+            <button className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600" onClick={() => handleSearch('')}>
               <X className="h-4 w-4" />
             </button>
           )}
@@ -161,23 +184,22 @@ function RolesSection() {
           <p className="px-6 pb-4 text-sm text-gray-500">กำลังโหลด...</p>
         ) : (
           <div className="divide-y">
-            {filtered.length === 0 && (
-              <p className="px-6 py-4 text-sm text-gray-400">ไม่พบ Role ที่ค้นหา</p>
+            {paged.length === 0 && (
+              <p className="px-6 py-4 text-sm text-gray-400">
+                {search ? 'ไม่พบ Role ที่ค้นหา' : 'ยังไม่มี Role'}
+              </p>
             )}
-            {filtered.map((role, i) => (
+            {paged.map((role, i) => (
               <div key={role.role_key} className={`grid grid-cols-[160px_1fr_auto] items-center gap-4 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
-                {/* คอลัมน์ 1: Key */}
                 <code className="rounded bg-slate-800 px-2.5 py-1 text-xs font-mono text-white w-fit">
                   {role.role_key}
                 </code>
-                {/* คอลัมน์ 2: Name + Description */}
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800">{role.role_name}</p>
                   {role.description && (
                     <p className="text-xs text-gray-400 mt-0.5 truncate">{role.description}</p>
                   )}
                 </div>
-                {/* คอลัมน์ 3: Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {role.usage_count > 0 && (
                     <span className="text-xs text-gray-400 mr-1">{role.usage_count} users</span>
@@ -198,6 +220,7 @@ function RolesSection() {
             ))}
           </div>
         )}
+        <MiniPagination total={filtered.length} page={page} onPage={setPage} />
       </CardContent>
     </Card>
   )
@@ -291,10 +314,23 @@ function DeptFormDialog({ dept, parents, onDone }) {
 
 function DepartmentsSection() {
   const qc = useQueryClient()
+  const [search, setSearch] = useState('')
+  const [page,   setPage]   = useState(1)
+
   const { data: depts = [], isLoading } = useQuery({
     queryKey: ['depts'],
     queryFn: () => api.get('/departments').then(r => r.data),
   })
+
+  const filtered = depts.filter(d =>
+    d.dept_name.toLowerCase().includes(search.toLowerCase()) ||
+    d.dept_type.toLowerCase().includes(search.toLowerCase()) ||
+    (d.parent_name || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  function handleSearch(v) { setSearch(v); setPage(1) }
 
   const remove = useMutation({
     mutationFn: id => api.delete(`/departments/${id}`),
@@ -304,32 +340,50 @@ function DepartmentsSection() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-4">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Building2 className="h-5 w-5 text-green-600" />
-          หน่วยงาน / Scope
-        </CardTitle>
-        <DeptFormDialog parents={depts} />
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building2 className="h-5 w-5 text-green-600" />
+            หน่วยงาน / Scope
+          </CardTitle>
+          <DeptFormDialog parents={depts} />
+        </div>
+        <div className="relative mt-3">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Input
+            className="pl-8 pr-8 h-8 text-sm"
+            placeholder="ค้นหาหน่วยงาน..."
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+          />
+          {search && (
+            <button className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600" onClick={() => handleSearch('')}>
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
           <p className="px-6 pb-4 text-sm text-gray-500">กำลังโหลด...</p>
         ) : (
           <div className="divide-y">
-            {depts.map((d, i) => (
+            {paged.length === 0 && (
+              <p className="px-6 py-4 text-sm text-gray-400">
+                {search ? 'ไม่พบหน่วยงานที่ค้นหา' : 'ยังไม่มีหน่วยงาน'}
+              </p>
+            )}
+            {paged.map((d, i) => (
               <div key={d.id} className={`grid grid-cols-[120px_1fr_auto] items-center gap-4 px-6 py-3 ${i % 2 === 1 ? 'bg-slate-50' : ''}`}>
-                {/* คอลัมน์ 1: Type badge */}
                 <span className={`rounded-md px-2.5 py-1 text-xs font-semibold text-center w-fit ${DEPT_TYPE_COLORS[d.dept_type] || 'bg-gray-100 text-gray-700'}`}>
                   {d.dept_type}
                 </span>
-                {/* คอลัมน์ 2: Name + Parent */}
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800">{d.dept_name}</p>
                   {d.parent_name && (
                     <p className="text-xs text-gray-400 mt-0.5">↳ {d.parent_name}</p>
                   )}
                 </div>
-                {/* คอลัมน์ 3: Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {d.usage_count > 0 && (
                     <span className="text-xs text-gray-400 mr-1">{d.usage_count} users</span>
@@ -348,9 +402,9 @@ function DepartmentsSection() {
                 </div>
               </div>
             ))}
-            {!depts.length && <p className="px-6 pb-4 text-sm text-gray-400">ยังไม่มีหน่วยงาน</p>}
           </div>
         )}
+        <MiniPagination total={filtered.length} page={page} onPage={setPage} />
       </CardContent>
     </Card>
   )
