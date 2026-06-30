@@ -125,8 +125,10 @@ function renderError(res, statusCode, title, message, detail = '') {
           padding: 11px 26px; background: rgba(255,255,255,.06); color: #f1f5f9;
           border: 1px solid rgba(255,255,255,.1); border-radius: 10px; text-decoration: none;
           font-size: 13.5px; font-weight: 600; transition: background .2s, border-color .2s;
+          font-family: inherit; cursor: pointer;
         }
         .btn:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); }
+        .btn:disabled { opacity: .6; cursor: default; }
         .footer { margin-top: 28px; font-size: 11px; color: #475569; letter-spacing: .5px; }
       </style>
     </head>
@@ -140,12 +142,13 @@ function renderError(res, statusCode, title, message, detail = '') {
         <h1>${safeTitle}</h1>
         <p>${safeMessage}</p>
         ${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}
-        <a href="javascript:history.back()" class="btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          ย้อนกลับ
-        </a>
+        <button id="ack-btn" class="btn" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          รับทราบ
+        </button>
         <div class="footer">NORTH BANGKOK UNIVERSITY — CENTRALIZED SSO</div>
       </div>
+      <script src="/error-page.js" defer></script>
     </body>
     </html>
   `);
