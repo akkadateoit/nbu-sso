@@ -49,7 +49,7 @@ async function getUserPermission(userId, appId) {
  * @returns {Promise<{ id: number, app_name: string }|null>}
  */
 async function getAppByName(appName) {
-  const sql = `SELECT id, app_name FROM apps WHERE app_name = $1 LIMIT 1`;
+  const sql = `SELECT id, app_name, callback_urls FROM apps WHERE app_name = $1 AND is_active = true LIMIT 1`;
   const { rows } = await pool.query(sql, [appName]);
   return rows[0] || null;
 }

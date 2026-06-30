@@ -6,6 +6,7 @@ const config = require('../config');
 const { isGroupMember } = require('../services/googleGroup');
 const { upsertUser, getUserPermission, getAppByName } = require('../services/permissions');
 const { signToken } = require('../services/jwt');
+const { escapeHtml, isValidRedirectUri } = require('../utils/security');
 
 const router = express.Router();
 
@@ -38,13 +39,18 @@ passport.deserializeUser((user, done) => done(null, user));
 // Helper: สร้างหน้า HTML error แบบ inline
 // ========================================================
 function renderError(res, statusCode, title, message, detail = '') {
+  // escape ทุกค่าก่อนแทรกใน HTML ป้องกัน XSS — title/message มาจาก code คงที่
+  // แต่ detail มักมีค่าจาก user input (เช่น app_id, email) จึงต้อง escape เสมอ
+  const safeTitle   = escapeHtml(title);
+  const safeMessage = escapeHtml(message);
+  const safeDetail  = escapeHtml(detail);
   res.status(statusCode).send(`
     <!DOCTYPE html>
     <html lang="th">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${title} — NBU SSO</title>
+      <title>${safeTitle} — NBU SSO</title>
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
@@ -60,9 +66,9 @@ function renderError(res, statusCode, title, message, detail = '') {
     <body>
       <div class="card">
         <div class="icon">🔒</div>
-        <h1>${title}</h1>
-        <p>${message}</p>
-        ${detail ? `<div class="detail">${detail}</div>` : ''}
+        <h1>${safeTitle}</h1>
+        <p>${safeMessage}</p>
+        ${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}
         <a href="javascript:history.back()" class="btn">← ย้อนกลับ</a>
         <div class="logo">North Bangkok University — Centralized SSO</div>
       </div>
@@ -75,7 +81,7 @@ function renderError(res, statusCode, title, message, detail = '') {
 // GET /login?app_id=xxx&redirect_uri=https://...
 // จุดเริ่มต้น: แอปย่อย redirect มาที่นี่
 // ========================================================
-router.get('/login', (req, res) => {
+router.get('/login', async (req, res) => {
   const { app_id, redirect_uri } = req.query;
 
   if (!app_id) {
@@ -83,6 +89,24 @@ router.get('/login', (req, res) => {
   }
   if (!redirect_uri) {
     return renderError(res, 400, 'ไม่ระบุ Redirect URI', 'ต้องส่ง redirect_uri มาด้วยครับ');
+  }
+
+  // ---- ป้องกัน Open Redirect: ตรวจ app_id มีจริง + redirect_uri ต้องอยู่ใน allowlist ----
+  let app;
+  try {
+    app = await getAppByName(app_id);
+  } catch (err) {
+    console.error('[Auth] ❌ Error looking up app:', err);
+    return renderError(res, 500, 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง');
+  }
+  if (!app) {
+    return renderError(res, 404, 'ไม่พบ Application',
+      `ไม่พบ Application "${app_id}" ในระบบ กรุณาติดต่อผู้ดูแลระบบ`);
+  }
+  if (!isValidRedirectUri(redirect_uri, app.callback_urls)) {
+    return renderError(res, 400, 'Redirect URI ไม่ได้รับอนุญาต',
+      `"${redirect_uri}" ไม่ได้ลงทะเบียนไว้กับ Application "${app_id}"`,
+      'กรุณาติดต่อผู้ดูแลระบบเพื่อลงทะเบียน Callback URL ให้ถูกต้อง');
   }
 
   // เก็บ app_id และ redirect_uri ไว้ใน session ก่อน redirect ไป Google
@@ -187,7 +211,7 @@ router.get('/auth/google/callback',
       console.error('[Auth] ❌ Error during callback:', err);
       return renderError(res, 500, 'เกิดข้อผิดพลาด',
         'เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง',
-        err.message);  // แสดง error detail เพื่อ debug
+        config.isDev ? err.message : '');  // แสดง detail เฉพาะ dev เท่านั้น
     }
   }
 );

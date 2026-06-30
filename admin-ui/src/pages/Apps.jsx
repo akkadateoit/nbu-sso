@@ -1,24 +1,29 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Copy, Check, ToggleLeft, ToggleRight, Search, X } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Plus, Copy, Check, ToggleLeft, ToggleRight, Search, X, Pencil, Link2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
 import api from '@/lib/api'
 
 function CreateAppDialog({ onCreated }) {
   const [open, setOpen]         = useState(false)
   const [appName, setAppName]   = useState('')
   const [desc, setDesc]         = useState('')
+  const [urlsText, setUrlsText] = useState('')
   const [newSecret, setNewSecret] = useState(null)
   const [copied, setCopied]     = useState(false)
   const qc = useQueryClient()
 
   const create = useMutation({
-    mutationFn: () => api.post('/apps', { app_name: appName, description: desc }).then(r => r.data),
+    mutationFn: () => api.post('/apps', {
+      app_name: appName,
+      description: desc,
+      callback_urls: urlsText.split('\n').map(s => s.trim()).filter(Boolean),
+    }).then(r => r.data),
     onSuccess: data => {
       setNewSecret(data.app_secret)
       qc.invalidateQueries({ queryKey: ['apps'] })
@@ -36,7 +41,9 @@ function CreateAppDialog({ onCreated }) {
     setOpen(false)
     setAppName('')
     setDesc('')
+    setUrlsText('')
     setNewSecret(null)
+    create.reset()
   }
 
   return (
@@ -68,20 +75,90 @@ function CreateAppDialog({ onCreated }) {
             <div className="space-y-2">
               <Label>App ID (app_name) *</Label>
               <Input placeholder="เช่น hr-system, e-learning" value={appName} onChange={e => setAppName(e.target.value)} />
-              <p className="text-xs text-muted-foreground">ใช้ตัวพิมพ์เล็ก ตัวเลข และ - เท่านั้น</p>
+              <p className="text-xs text-gray-500">ใช้ตัวพิมพ์เล็ก ตัวเลข และ - เท่านั้น</p>
             </div>
             <div className="space-y-2">
               <Label>คำอธิบาย</Label>
               <Input placeholder="ชื่อระบบหรือรายละเอียดแอป" value={desc} onChange={e => setDesc(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Callback URLs ที่อนุญาต * <span className="text-gray-400 font-normal">(1 บรรทัดต่อ 1 URL)</span></Label>
+              <textarea
+                className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] font-mono"
+                placeholder={"https://myapp.northbkk.ac.th\nhttps://myapp.northbkk.ac.th/auth/callback"}
+                value={urlsText}
+                onChange={e => setUrlsText(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">
+                ระบบจะอนุญาตให้ redirect กลับเฉพาะ origin (โดเมน) เหล่านี้เท่านั้น ป้องกัน Open Redirect
+              </p>
+            </div>
             {create.error && (
-              <p className="text-sm text-destructive">{create.error.response?.data?.error || 'เกิดข้อผิดพลาด'}</p>
+              <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+                {create.error.response?.data?.error || 'เกิดข้อผิดพลาด'}
+              </p>
             )}
-            <Button className="w-full" onClick={() => create.mutate()} disabled={!appName || create.isPending}>
+            <Button
+              className="w-full"
+              onClick={() => create.mutate()}
+              disabled={!appName || !urlsText.trim() || create.isPending}
+            >
               {create.isPending ? 'กำลังสร้าง...' : 'ลงทะเบียนแอป'}
             </Button>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EditCallbackUrlsDialog({ app }) {
+  const [open, setOpen]         = useState(false)
+  const [urlsText, setUrlsText] = useState((app.callback_urls || []).join('\n'))
+  const qc = useQueryClient()
+
+  const save = useMutation({
+    mutationFn: () => api.patch(`/apps/${app.id}`, {
+      callback_urls: urlsText.split('\n').map(s => s.trim()).filter(Boolean),
+    }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['apps'] })
+      setOpen(false)
+    },
+  })
+
+  function handleOpen(v) {
+    if (v) { setUrlsText((app.callback_urls || []).join('\n')); save.reset() }
+    setOpen(v)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="แก้ไข Callback URLs">
+          <Link2 className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Callback URLs — {app.app_name}</DialogTitle>
+          <DialogDescription>URL ที่อนุญาตให้ SSO redirect กลับหลัง Login สำเร็จ (1 บรรทัดต่อ 1 URL)</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <textarea
+            className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] font-mono"
+            value={urlsText}
+            onChange={e => setUrlsText(e.target.value)}
+          />
+          {save.error && (
+            <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+              {save.error.response?.data?.error || 'เกิดข้อผิดพลาด'}
+            </p>
+          )}
+          <Button className="w-full" onClick={() => save.mutate()} disabled={!urlsText.trim() || save.isPending}>
+            {save.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -157,13 +234,24 @@ export default function Apps() {
                   <Badge variant={app.is_active ? 'success' : 'destructive'}>
                     {app.is_active ? 'Active' : 'Inactive'}
                   </Badge>
+                  {(!app.callback_urls || app.callback_urls.length === 0) && (
+                    <Badge variant="warning" title="แอปนี้ยังไม่มี Callback URL — Login จะถูกปฏิเสธ">
+                      ⚠ ไม่มี Callback URL
+                    </Badge>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{app.description || '—'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{app.description || '—'}</p>
+                {app.callback_urls?.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1 font-mono truncate">
+                    {app.callback_urls.join(', ')}
+                  </p>
+                )}
               </div>
               <div className="text-center shrink-0">
                 <p className="text-2xl font-bold text-slate-700">{app.permission_count}</p>
-                <p className="text-xs text-muted-foreground">users</p>
+                <p className="text-xs text-gray-500">users</p>
               </div>
+              <EditCallbackUrlsDialog app={app} />
               <Button
                 variant="ghost" size="sm"
                 className={app.is_active ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-800'}

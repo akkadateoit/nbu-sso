@@ -2,6 +2,7 @@
 const express      = require('express');
 const { verifyToken } = require('../services/jwt');
 const svc          = require('../services/adminService');
+const { sendError } = require('../utils/security');
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get('/stats', async (req, res) => {
     ]);
     res.json({ stats, recentLogs });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -42,41 +43,60 @@ router.get('/apps', async (req, res) => {
   try {
     res.json(await svc.listApps());
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
 router.post('/apps', async (req, res) => {
-  const { app_name, description } = req.body;
+  const { app_name, description, callback_urls } = req.body;
   if (!app_name) return res.status(400).json({ error: 'app_name is required' });
   if (!/^[a-z0-9-]+$/.test(app_name))
     return res.status(400).json({ error: 'app_name ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และ -' });
+
+  const urls = Array.isArray(callback_urls) ? callback_urls.filter(Boolean) : [];
+  if (!urls.length)
+    return res.status(400).json({ error: 'ต้องระบุ callback_urls อย่างน้อย 1 URL (ป้องกัน Open Redirect)' });
+  for (const u of urls) {
+    try { new URL(/^https?:\/\//i.test(u) ? u : 'https://' + u); }
+    catch { return res.status(400).json({ error: `callback_url ไม่ถูกต้อง: ${u}` }); }
+  }
+
   try {
-    const app = await svc.createApp(app_name, description || '');
+    const app = await svc.createApp(app_name, description || '', urls);
     await svc.writeAuditLog({
       actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
-      action: 'CREATE_APP', appName: app_name, detail: { description },
+      action: 'CREATE_APP', appName: app_name, detail: { description, callback_urls: urls },
     });
     res.status(201).json(app);
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ error: 'App ID นี้มีอยู่แล้ว' });
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
 router.patch('/apps/:id', async (req, res) => {
-  const { description, is_active } = req.body;
+  const { description, is_active, callback_urls } = req.body;
+
+  let urls;
+  if (callback_urls !== undefined) {
+    urls = Array.isArray(callback_urls) ? callback_urls.filter(Boolean) : [];
+    for (const u of urls) {
+      try { new URL(/^https?:\/\//i.test(u) ? u : 'https://' + u); }
+      catch { return res.status(400).json({ error: `callback_url ไม่ถูกต้อง: ${u}` }); }
+    }
+  }
+
   try {
-    const app = await svc.updateApp(req.params.id, { description, is_active });
+    const app = await svc.updateApp(req.params.id, { description, is_active, callback_urls: urls });
     if (!app) return res.status(404).json({ error: 'ไม่พบ App' });
     await svc.writeAuditLog({
       actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
       action: is_active === false ? 'DISABLE_APP' : 'UPDATE_APP',
-      appName: app.app_name, detail: { is_active, description },
+      appName: app.app_name, detail: { is_active, description, callback_urls: urls },
     });
     res.json(app);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -96,7 +116,7 @@ router.post('/users', async (req, res) => {
     });
     res.status(201).json(user);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -105,7 +125,7 @@ router.get('/users', async (req, res) => {
   try {
     res.json(await svc.listUsers({ search, page: +page, limit: +limit }));
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -113,7 +133,7 @@ router.get('/users/:id/permissions', async (req, res) => {
   try {
     res.json(await svc.getUserPermissions(req.params.id));
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -128,7 +148,7 @@ router.delete('/users/:id', async (req, res) => {
     });
     res.json({ success: true, deleted: user });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -144,7 +164,7 @@ router.patch('/users/:id/active', async (req, res) => {
     });
     res.json(user);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -169,7 +189,7 @@ router.post('/permissions', async (req, res) => {
     });
     res.status(201).json(perm);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -189,7 +209,7 @@ router.patch('/permissions/:id', async (req, res) => {
     });
     res.json(perm);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -203,14 +223,14 @@ router.delete('/permissions/:id', async (req, res) => {
     });
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
 // ── Roles CRUD ────────────────────────────────────────────────
 router.get('/roles', async (req, res) => {
   try { res.json(await svc.listRoles()); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  catch (e) { sendError(res, 500, e); }
 });
 
 router.post('/roles', async (req, res) => {
@@ -224,7 +244,7 @@ router.post('/roles', async (req, res) => {
     res.status(201).json(role);
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ error: 'Role Key นี้มีอยู่แล้ว' });
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -234,7 +254,7 @@ router.patch('/roles/:key', async (req, res) => {
     const role = await svc.updateRole(req.params.key, { role_name, description });
     if (!role) return res.status(404).json({ error: 'ไม่พบ Role' });
     res.json(role);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { sendError(res, 500, e); }
 });
 
 router.delete('/roles/:key', async (req, res) => {
@@ -244,14 +264,14 @@ router.delete('/roles/:key', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     if (e.code === '23503') return res.status(409).json({ error: 'ไม่สามารถลบได้ เพราะมีผู้ใช้ที่ใช้ Role นี้อยู่' });
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
 // ── Departments CRUD ──────────────────────────────────────────
 router.get('/departments', async (req, res) => {
   try { res.json(await svc.listDepartments()); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  catch (e) { sendError(res, 500, e); }
 });
 
 router.post('/departments', async (req, res) => {
@@ -263,7 +283,7 @@ router.post('/departments', async (req, res) => {
     const dept = await svc.createDepartment(dept_name, dept_type, parent_id || null);
     await svc.writeAuditLog({ actedById: req.adminUser.sub, actedByEmail: req.adminUser.email, action: 'CREATE_DEPT', detail: { dept_name, dept_type } });
     res.status(201).json(dept);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { sendError(res, 500, e); }
 });
 
 router.patch('/departments/:id', async (req, res) => {
@@ -272,7 +292,7 @@ router.patch('/departments/:id', async (req, res) => {
     const dept = await svc.updateDepartment(req.params.id, { dept_name, dept_type, parent_id });
     if (!dept) return res.status(404).json({ error: 'ไม่พบ Department' });
     res.json(dept);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { sendError(res, 500, e); }
 });
 
 router.delete('/departments/:id', async (req, res) => {
@@ -282,7 +302,7 @@ router.delete('/departments/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     if (e.code === '23503') return res.status(409).json({ error: 'ไม่สามารถลบได้ เพราะมีผู้ใช้ที่ใช้ Scope นี้อยู่' });
-    res.status(500).json({ error: e.message });
+    sendError(res, 500, e);
   }
 });
 
@@ -290,7 +310,7 @@ router.delete('/departments/:id', async (req, res) => {
 router.get('/audit-logs', async (req, res) => {
   const { page = '1', limit = '30' } = req.query;
   try { res.json(await svc.listAuditLogs({ page: +page, limit: +limit })); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  catch (e) { sendError(res, 500, e); }
 });
 
 module.exports = router;

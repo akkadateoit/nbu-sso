@@ -29,7 +29,7 @@ async function getRecentAuditLogs(limit = 8) {
 async function listApps() {
   const { rows } = await pool.query(`
     SELECT
-      a.id, a.app_name, a.description, a.is_active, a.created_at,
+      a.id, a.app_name, a.description, a.is_active, a.callback_urls, a.created_at,
       COUNT(uap.id)::int AS permission_count
     FROM apps a
     LEFT JOIN user_app_permissions uap ON uap.app_id = a.id
@@ -39,13 +39,13 @@ async function listApps() {
   return rows;
 }
 
-async function createApp(appName, description) {
+async function createApp(appName, description, callbackUrls = []) {
   const secret = crypto.randomBytes(32).toString('hex');
   const { rows } = await pool.query(`
-    INSERT INTO apps (app_name, app_secret, description)
-    VALUES ($1, $2, $3)
-    RETURNING id, app_name, description, is_active, created_at
-  `, [appName, secret, description]);
+    INSERT INTO apps (app_name, app_secret, description, callback_urls)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, app_name, description, is_active, callback_urls, created_at
+  `, [appName, secret, description, callbackUrls]);
   return { ...rows[0], app_secret: secret };
 }
 
@@ -53,12 +53,13 @@ async function updateApp(id, fields) {
   const sets   = [];
   const values = [];
   let   idx    = 1;
-  if (fields.description !== undefined) { sets.push(`description = $${idx++}`); values.push(fields.description); }
-  if (fields.is_active   !== undefined) { sets.push(`is_active   = $${idx++}`); values.push(fields.is_active); }
+  if (fields.description   !== undefined) { sets.push(`description   = $${idx++}`); values.push(fields.description); }
+  if (fields.is_active     !== undefined) { sets.push(`is_active     = $${idx++}`); values.push(fields.is_active); }
+  if (fields.callback_urls !== undefined) { sets.push(`callback_urls = $${idx++}`); values.push(fields.callback_urls); }
   if (!sets.length) return null;
   values.push(id);
   const { rows } = await pool.query(
-    `UPDATE apps SET ${sets.join(', ')} WHERE id = $${idx} RETURNING id, app_name, description, is_active`,
+    `UPDATE apps SET ${sets.join(', ')} WHERE id = $${idx} RETURNING id, app_name, description, is_active, callback_urls`,
     values
   );
   return rows[0] || null;
