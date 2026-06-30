@@ -10,6 +10,7 @@ const authRouter  = require('./routes/auth');
 const apiRouter   = require('./routes/api');
 const adminRouter = require('./routes/adminApi');
 const { passport } = require('./routes/auth');
+const { loginLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
@@ -94,6 +95,8 @@ app.get('/demouser2', (_req, res) => {
 app.get('/demouser3', (_req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'demouser3.html'));
 });
+app.use('/login', loginLimiter);
+app.use('/auth', loginLimiter);
 app.use('/', authRouter);
 app.use('/api/v1', apiRouter);
 app.use('/api/v1/admin', adminRouter);
