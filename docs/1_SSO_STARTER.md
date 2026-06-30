@@ -137,6 +137,37 @@ logout() ใน App → ลบ token เฉพาะแอปนี้
 
 ---
 
+### 5. ห้ามพึ่ง Cookie/Session ของ SSO Server ในการยืนยันตัวตน
+
+⚠️ **ข้อนี้สำคัญมากสำหรับคนที่จะเพิ่ม Endpoint ใหม่ใน SSO Server เอง** (ไม่ใช่แอปย่อย)
+
+SSO Server เปิด CORS แบบกว้าง (`origin: true` — อนุญาตทุก domain) เพราะแอปย่อยจำนวนมากต้องเรียก `/api/v1/*` ได้จากหลาย origin ความปลอดภัยที่ชดเชยไว้คือ **ทุก endpoint ต้องยืนยันตัวตนด้วย JWT ที่แนบมาเอง (Bearer token หรือ body) เท่านั้น ห้ามพึ่ง Cookie/Session ของ browser**
+
+```javascript
+// ❌ ห้ามทำแบบนี้ — endpoint ใหม่ที่เชื่อ req.session หรือ cookie
+router.get('/api/v1/my-new-endpoint', (req, res) => {
+  if (!req.session.userId) return res.status(401).end();   // อันตราย!
+  // เพราะ CORS เปิดกว้าง เว็บไหนก็ยิง request พร้อม cookie ผู้ใช้มาได้
+  ...
+});
+
+// ✅ ต้องทำแบบนี้ — ยืนยันด้วย JWT ที่ client ส่งมาเอง
+router.get('/api/v1/my-new-endpoint', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const result = verifyToken(token);                        // ปลอดภัย
+  if (!result.valid) return res.status(401).json({ error: result.error });
+  ...
+});
+```
+
+```
+เหตุผล: Session Cookie (nbu.sso.sid) ใช้เฉพาะช่วง OAuth dance
+        (/login → Google → /auth/google/callback) เท่านั้น
+        ห้ามนำไปใช้ป้องกัน endpoint อื่นเด็ดขาด เพราะ CORS เปิดกว้าง
+```
+
+---
+
 ## ขั้นตอน Login Flow (แอปย่อยต้องทำ)
 
 ```
@@ -485,13 +516,23 @@ export default function App({ Component, pageProps }) {
 
 ## สิ่งที่ต้องทำก่อน (Setup ใน NBU SSO)
 
-> **ทำครั้งเดียวต่อแอป** — ให้ Admin ของ NBU SSO ทำให้หรือทำเองถ้ามีสิทธิ์
+> **ทำครั้งเดียวต่อแอป** — แนะนำลงทะเบียนผ่าน Admin Dashboard (`/admin/apps`) แทนการรัน SQL ตรงๆ
 
 ### 1. ลงทะเบียนแอปใน Supabase
+
+⚠️ **ตั้งแต่เวอร์ชันนี้ ต้องระบุ `callback_urls` เสมอ** — ถ้าไม่มี Login จะถูกปฏิเสธทุกครั้ง (ป้องกัน Open Redirect)
+
 ```sql
-INSERT INTO apps (app_name, app_secret, description)
-VALUES ('YOUR_APP_ID', 'RANDOM_SECRET_64_HEX', 'ชื่อระบบของคุณ');
+INSERT INTO apps (app_name, app_secret, description, callback_urls)
+VALUES (
+  'YOUR_APP_ID',
+  'RANDOM_SECRET_64_HEX',
+  'ชื่อระบบของคุณ',
+  ARRAY['https://your-app-url.northbkk.ac.th']   -- ← ใส่ origin ของแอปจริง
+);
 ```
+
+SSO จะตรวจว่า `redirect_uri` ที่แอปส่งมาตอน `/login` ตรงกับ **origin** (scheme+host+port) ใน `callback_urls` หรือไม่ — ถ้าไม่ตรงจะถูกบล็อกด้วย `400 Redirect URI ไม่ได้รับอนุญาต` ทันที ไม่ต้องระบุ path ให้ตรงเป๊ะ แค่ domain ตรงพอ
 
 ### 2. กำหนดสิทธิ์ผู้ใช้
 ```sql
