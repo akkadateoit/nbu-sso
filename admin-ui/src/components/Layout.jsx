@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Package, Users, ScrollText, LogOut, ShieldCheck, Database } from 'lucide-react'
-import { getCurrentUser, clearToken, redirectToLogin } from '@/lib/auth'
+import { getCurrentUser, logout as ssoLogout, redirectToLogin, relogin, isLoggedOut } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -16,14 +16,30 @@ const navItems = [
 export default function Layout() {
   const navigate  = useNavigate()
   const user      = getCurrentUser()
+  const loggedOut = isLoggedOut()
 
   useEffect(() => {
-    if (!user) redirectToLogin()
-  }, [user])
+    if (!user && !loggedOut) redirectToLogin()
+  }, [user, loggedOut])
 
   function handleLogout() {
-    clearToken()
-    redirectToLogin()
+    ssoLogout()
+    // reload เต็มหน้าเพื่อให้อ่านค่า token/flag ใหม่ถูกต้อง (getCurrentUser/isLoggedOut ไม่ใช่ React state)
+    window.location.reload()
+  }
+
+  if (loggedOut) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center space-y-4 max-w-sm px-4">
+          <p className="text-gray-600">ออกจากระบบแล้ว</p>
+          <Button onClick={relogin}>เข้าสู่ระบบใหม่</Button>
+          <p className="text-xs text-gray-400">
+            หากใช้คอมพิวเตอร์สาธารณะ กรุณาปิด Browser เพื่อความปลอดภัย
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (!user) return null
