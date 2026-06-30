@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle, X, Pencil, Copy, CheckCircle2 } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, Trash2, UserX, AlertTriangle, X, Pencil, Copy, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,9 +10,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchSelect } from '@/components/ui/search-select'
 import api from '@/lib/api'
+
+const PAGE_SIZE = 10
 
 // ── Confirm Dialog ─────────────────────────────────────────────
 function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = 'ยืนยัน', variant = 'destructive', onConfirm, loading }) {
@@ -596,6 +597,7 @@ export default function Users() {
   const [search,     setSearch]     = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [deptFilter, setDeptFilter] = useState('')
+  const [page,       setPage]       = useState(1)
 
   const { data, isLoading } = useQuery({
     queryKey: ['users'],
@@ -623,12 +625,20 @@ export default function Users() {
     return matchSearch && matchRole && matchDept
   })
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const pagedUsers  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   const hasFilter = search || roleFilter || deptFilter
+
+  function updateSearch(v)      { setSearch(v); setPage(1) }
+  function updateRoleFilter(v)  { setRoleFilter(v); setPage(1) }
+  function updateDeptFilter(v)  { setDeptFilter(v); setPage(1) }
 
   function clearAll() {
     setSearch('')
     setRoleFilter('')
     setDeptFilter('')
+    setPage(1)
   }
 
   return (
@@ -647,44 +657,40 @@ export default function Users() {
             className="pl-8 pr-8 h-9"
             placeholder="ค้นหา email / ชื่อ..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => updateSearch(e.target.value)}
           />
           {search && (
-            <button className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600" onClick={() => setSearch('')}>
+            <button className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600" onClick={() => updateSearch('')}>
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
 
         {/* Role dropdown */}
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-44 h-9">
-            <SelectValue placeholder="ทุก Role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">ทุก Role</SelectItem>
-            {roles.map(r => (
-              <SelectItem key={r.role_key} value={r.role_key}>
-                {r.role_key} — {r.role_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchSelect
+          className="w-44"
+          value={roleFilter}
+          onValueChange={updateRoleFilter}
+          placeholder="ทุก Role"
+          searchPlaceholder="ค้นหา Role..."
+          options={[
+            { value: '', label: 'ทุก Role' },
+            ...roles.map(r => ({ value: r.role_key, label: `${r.role_key} — ${r.role_name}` })),
+          ]}
+        />
 
         {/* Scope dropdown */}
-        <Select value={deptFilter} onValueChange={setDeptFilter}>
-          <SelectTrigger className="w-52 h-9">
-            <SelectValue placeholder="ทุกหน่วยงาน" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">ทุกหน่วยงาน</SelectItem>
-            {depts.map(d => (
-              <SelectItem key={d.id} value={String(d.id)}>
-                [{d.dept_type}] {d.dept_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchSelect
+          className="w-56"
+          value={deptFilter}
+          onValueChange={updateDeptFilter}
+          placeholder="ทุกหน่วยงาน"
+          searchPlaceholder="ค้นหาหน่วยงาน..."
+          options={[
+            { value: '', label: 'ทุกหน่วยงาน' },
+            ...depts.map(d => ({ value: String(d.id), label: `[${d.dept_type}] ${d.dept_name}` })),
+          ]}
+        />
 
         {/* ล้าง filter */}
         {hasFilter && (
@@ -709,19 +715,19 @@ export default function Users() {
           {search && (
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-medium">
               ค้นหา: "{search}"
-              <button onClick={() => setSearch('')}><X className="h-3 w-3" /></button>
+              <button onClick={() => updateSearch('')}><X className="h-3 w-3" /></button>
             </span>
           )}
           {roleFilter && (
             <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-700 px-3 py-1 text-xs font-medium">
               Role: {roleFilter}
-              <button onClick={() => setRoleFilter('')}><X className="h-3 w-3" /></button>
+              <button onClick={() => updateRoleFilter('')}><X className="h-3 w-3" /></button>
             </span>
           )}
           {deptFilter && (
             <span className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
               Scope: {depts.find(d => String(d.id) === deptFilter)?.dept_name || deptFilter}
-              <button onClick={() => setDeptFilter('')}><X className="h-3 w-3" /></button>
+              <button onClick={() => updateDeptFilter('')}><X className="h-3 w-3" /></button>
             </span>
           )}
         </div>
@@ -733,9 +739,39 @@ export default function Users() {
           <p className="text-sm text-gray-400">กำลังโหลด...</p>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-gray-400">ไม่พบผู้ใช้ที่ตรงกับเงื่อนไข</p>
-        ) : filtered.map(user => (
-          <UserRow key={user.id} user={user} />
-        ))}
+        ) : (
+          <>
+            {pagedUsers.map(user => (
+              <UserRow key={user.id} user={user} />
+            ))}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between rounded-lg border bg-white px-4 py-3 text-sm text-gray-500">
+                <span>
+                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} จาก {filtered.length} คน
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7"
+                    disabled={page <= 1}
+                    onClick={() => setPage(p => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-2 font-medium text-gray-700">{page}/{totalPages}</span>
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(p => p + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
