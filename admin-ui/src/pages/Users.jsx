@@ -668,7 +668,7 @@ export default function Users() {
 
         {/* Role dropdown */}
         <SearchSelect
-          className="w-44"
+          className="w-60"
           value={roleFilter}
           onValueChange={updateRoleFilter}
           placeholder="ทุก Role"
@@ -681,7 +681,7 @@ export default function Users() {
 
         {/* Scope dropdown */}
         <SearchSelect
-          className="w-56"
+          className="w-72"
           value={deptFilter}
           onValueChange={updateDeptFilter}
           placeholder="ทุกหน่วยงาน"

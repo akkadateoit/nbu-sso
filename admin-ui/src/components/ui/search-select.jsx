@@ -57,7 +57,7 @@ export function SearchSelect({
       </button>
 
       {open && (
-        <div className="absolute z-[100] mt-1 w-full rounded-lg border border-gray-200 bg-white text-gray-900 shadow-xl overflow-hidden">
+        <div className="absolute z-[100] mt-1 min-w-full w-max max-w-[26rem] rounded-lg border border-gray-200 bg-white text-gray-900 shadow-xl overflow-hidden">
           <div className="relative border-b border-gray-100">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -79,7 +79,7 @@ export function SearchSelect({
                   onClick={() => { onValueChange(o.value); setOpen(false) }}
                   className="relative flex w-full cursor-pointer select-none items-center rounded-md py-2 pl-3 pr-8 text-sm outline-none text-left hover:bg-blue-50 hover:text-blue-900"
                 >
-                  {o.label}
+                  <span className="block truncate">{o.label}</span>
                   {o.value === value && (
                     <span className="absolute right-2 flex h-4 w-4 items-center justify-center">
                       <Check className="h-4 w-4 text-blue-600" />
