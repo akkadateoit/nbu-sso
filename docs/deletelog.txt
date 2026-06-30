@@ -1,0 +1,46 @@
+ใน supabase  ตาราง audit_logs กำหนดให้  ลบ logs ที่เกิน 90  วันได้ไหม
+ได้ครับ — ใช้ pg_cron ที่ Supabase มีให้อยู่แล้ว รันตามกำหนดเวลาโดยไม่ต้องแตะ code เลย
+
+วิธีทำ — รัน SQL ใน Supabase SQL Editor
+Step 1 — เปิด pg_cron extension
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+Step 2 — สร้าง scheduled job ลบ logs เกิน 90 วัน
+
+SELECT cron.schedule(
+  'delete-old-audit-logs',
+  '0 1 * * *',
+  $$
+    DELETE FROM audit_logs
+    WHERE created_at < NOW() - INTERVAL '90 days';
+  $$
+);
+
+'0 1 * * *' = ทุกวัน เวลา 01:00 UTC (08:00 น. ไทย)
+ตรวจสอบ Job ที่สร้าง
+
+SELECT jobid, jobname, schedule, command, active
+FROM cron.job
+WHERE jobname = 'delete-old-audit-logs';
+ถ้าต้องการเปลี่ยนเวลาหรือจำนวนวัน
+
+-- ลบ job เก่าก่อน
+SELECT cron.unschedule('delete-old-audit-logs');
+
+-- สร้างใหม่ (ตัวอย่าง: เก็บ 180 วัน รันทุกอาทิตย์)
+SELECT cron.schedule(
+  'delete-old-audit-logs',
+  '0 1 * * 0',
+  $$DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '180 days';$$
+);
+ตาราง Cron Schedule ที่ใช้บ่อย
+Schedule	ความหมาย
+0 1 * * *	ทุกวัน 01:00 UTC
+0 1 * * 0	ทุกอาทิตย์ 01:00 UTC
+0 1 1 * *	วันที่ 1 ของทุกเดือน
+ทดสอบก่อนได้เลย (ลบ logs เก่ากว่า 90 วัน ทันที)
+
+DELETE FROM audit_logs
+WHERE created_at < NOW() - INTERVAL '90 days'
+RETURNING id, acted_by_email, created_at;
+ใส่ RETURNING ไว้เพื่อดูว่าจะลบ record ไหนบ้างก่อน execute จริงครับ

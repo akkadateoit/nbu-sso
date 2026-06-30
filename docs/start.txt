@@ -31,3 +31,8 @@ Insert user_app_permissions table
 แค่นี้เลยครับ ง่ายและ Repeat ได้ทุกแอปครับ! 🚀z
 
 version 5
+
+## Goolge cloud service
+cloud run 
+cloud build
+artifact Registry
