@@ -2,6 +2,9 @@
 
 > ไฟล์นี้ให้ AI อ่านก่อนสร้างแอปย่อยใหม่ที่ต้องการ Authentication ผ่าน NBU SSO
 > อ่านร่วมกับ `PROJECT_MEMORY.md` เพื่อเข้าใจภาพรวม
+>
+> ⚠️ **อ่าน `1_SSO_STARTER.md` หัวข้อ "ข้อควรระวัง — Auto-redirect" ด้วยเสมอ**
+> มีบั๊กที่เจอจริงจากการพัฒนา (logout วนซ้ำ, ภาษาไทยเพี้ยน) ที่ทุกแอปต้องระวัง
 
 ---
 
@@ -23,15 +26,20 @@
 
 ### ขั้นตอนที่ 1 — ลงทะเบียนแอปใน Supabase
 
-เข้าที่ **Supabase → SQL Editor** แล้วรัน:
+> 💡 แนะนำลงทะเบียนผ่าน **Admin Dashboard** (`https://sso.northbkk.ac.th/admin/apps`) แทน
+> SQL ตรงๆ — มี UI กรอก Callback URLs และ generate Secret ให้อัตโนมัติ
+
+ถ้าจำเป็นต้องรัน SQL เอง เข้าที่ **Supabase → SQL Editor** แล้วรัน:
 
 ```sql
 -- 1. สร้าง App Secret (สุ่มด้วย: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-INSERT INTO apps (app_name, app_secret, description)
+--    ⚠️ ต้องระบุ callback_urls เสมอ — ไม่งั้น Login จะถูกบล็อกทุกครั้ง (ป้องกัน Open Redirect)
+INSERT INTO apps (app_name, app_secret, description, callback_urls)
 VALUES (
   'ชื่อแอป',        -- เช่น 'hr-system', 'e-learning', 'finance'
   'APP_SECRET_HERE', -- สุ่มค่า hex 64 ตัวอักษร
-  'คำอธิบายแอป'
+  'คำอธิบายแอป',
+  ARRAY['https://your-app-url.northbkk.ac.th']  -- origin ของแอปจริง (ไม่ต้องระบุ path)
 );
 
 -- 2. กำหนดสิทธิ์ให้ผู้ใช้ที่ต้องการ
@@ -105,27 +113,31 @@ https://URL-ของแอปใหม่/auth/callback
 
 ```html
 <script>
-const SSO_URL  = 'https://sso.northbkk.ac.th';
-const APP_ID   = 'ชื่อแอป';
-const APP_URL  = window.location.origin;
+const SSO_URL      = 'https://sso.northbkk.ac.th';
+const APP_ID       = 'ชื่อแอป';
+const APP_URL      = window.location.origin;
+const TOKEN_KEY     = 'nbu_token';
+const LOGOUT_FLAG   = 'nbu_' + APP_ID + '_logged_out';   // ← เปลี่ยนชื่อให้ไม่ชนแอปอื่น
 
-// ตรวจ Token เมื่อหน้าโหลด
+// ตรวจ Token เมื่อหน้าโหลด — ต้องเช็คครบ 3 กรณีเสมอ (ดู 1_SSO_STARTER.md)
 window.onload = function() {
   const params = new URLSearchParams(window.location.search);
-  const token  = params.get('token');
-  
+  let token = params.get('token');
+
   if (token) {
-    // ล้าง token ออกจาก URL
     history.replaceState({}, '', window.location.pathname);
-    sessionStorage.setItem('nbu_token', token);
-    showApp(decodeToken(token));
+    sessionStorage.removeItem(LOGOUT_FLAG);   // ได้ token ใหม่ → ล้าง flag
+    if (!isExpired(token)) sessionStorage.setItem(TOKEN_KEY, token);
+    else token = null;
+  }
+  if (!token) token = sessionStorage.getItem(TOKEN_KEY);
+
+  if (token && !isExpired(token)) {
+    showApp(decodeToken(token));                        // กรณีที่ 1: มี token
+  } else if (sessionStorage.getItem(LOGOUT_FLAG)) {
+    showLoggedOutScreen();                               // กรณีที่ 2: เพิ่ง logout — ห้าม redirect ซ้ำ!
   } else {
-    const saved = sessionStorage.getItem('nbu_token');
-    if (saved && !isExpired(saved)) {
-      showApp(decodeToken(saved));
-    } else {
-      loginWithSSO();
-    }
+    loginWithSSO();                                      // กรณีที่ 3: ไม่มี token เลย
   }
 };
 
@@ -134,9 +146,14 @@ function loginWithSSO() {
   window.location.href = `${SSO_URL}/login?app_id=${APP_ID}&redirect_uri=${redirect}`;
 }
 
+// ⚠️ ต้องใช้ TextDecoder ไม่ใช่ atob() ตรงๆ — atob() อ่านภาษาไทยใน
+// permission.allowed_dept_name ไม่ได้ จะได้อักขระเพี้ยน
 function decodeToken(token) {
-  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-  return JSON.parse(atob(base64));
+  const b64    = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(b64);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return JSON.parse(new TextDecoder('utf-8').decode(bytes));
 }
 
 function isExpired(token) {
@@ -144,15 +161,22 @@ function isExpired(token) {
   return Date.now() >= exp * 1000;
 }
 
+// logout ต้องตั้ง flag ป้องกัน auto-redirect วนซ้ำ (ห้าม loginWithSSO() ทันที)
 function logout() {
-  sessionStorage.removeItem('nbu_token');
-  loginWithSSO();
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.setItem(LOGOUT_FLAG, '1');
+  showLoggedOutScreen();
+}
+
+function showLoggedOutScreen() {
+  // แสดงหน้า "ออกจากระบบแล้ว" + ปุ่ม "เข้าสู่ระบบใหม่" ที่เรียก:
+  //   sessionStorage.removeItem(LOGOUT_FLAG); loginWithSSO();
 }
 
 // ตัวอย่างการเช็คสิทธิ์
 function showApp(payload) {
   const { email, name, permission } = payload;
-  
+
   if (permission.role === 'ADMIN') {
     // แสดงเมนูผู้ดูแล
   }
@@ -364,9 +388,13 @@ const SSO_URL  = 'https://sso.northbkk.ac.th';
 const APP_ID   = 'ชื่อแอป';
 
 // Client-side: decode token (ไม่ verify — verify ที่ server)
+// ⚠️ ใช้ TextDecoder ไม่ใช่ atob() ตรงๆ — กัน allowed_dept_name ภาษาไทยเพี้ยน
 export function decodeToken(token) {
-  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-  return JSON.parse(atob(base64));
+  const b64    = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(b64);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return JSON.parse(new TextDecoder('utf-8').decode(bytes));
 }
 
 // Client-side: redirect ไป SSO
@@ -450,7 +478,8 @@ Response สำเร็จ:
 - JWT Token (RS256) ออกโดย SSO มี payload ดังนี้:
   { sub, email, name, application_id, permission: { role, scope_level, allowed_dept_id, allowed_dept_name } }
 - Public Key ดึงจาก: https://sso.northbkk.ac.th/api/v1/public-key
-- กรุณาอ่านไฟล์ docs/FOR_AI_NEW_APP.md ใน d:\coding\nbu-sso สำหรับ code ตัวอย่างและรายละเอียดเพิ่มเติม
+- กรุณาอ่านไฟล์ docs/1_SSO_STARTER.md และ docs/2_FOR_AI_NEW_APP.md ใน d:\coding\nbu-sso
+  สำหรับ code ตัวอย่างและข้อควรระวัง (logout flag, UTF-8 decode, callback_urls)
 
 ฟีเจอร์ที่ต้องการ:
 1. [บรรยายฟีเจอร์]
@@ -463,15 +492,70 @@ Response สำเร็จ:
 
 ---
 
-## Checklist สำหรับแอปใหม่ทุกตัว
+## Checklist สำหรับแอปใหม่ทุกตัว (ฉบับเต็ม — กันหลุด)
+
+> รวมทุกบั๊กที่เจอจริงจากการพัฒนา NBU SSO มาแล้ว เช็คให้ครบทุกข้อก่อน Go Live
+
+### A. Setup ฝั่ง SSO (ทำครั้งเดียว)
 
 ```
-□ 1. Insert app ในตาราง apps (Supabase)
-□ 2. Insert สิทธิ์ใน user_app_permissions (Supabase)
-□ 3. เพิ่ม Authorized redirect URI ใน Google Cloud Console OAuth
-□ 4. ตั้งค่า SSO_URL และ APP_ID ในโค้ด
-□ 5. สร้าง callback page/route ที่รับ ?token= แล้วเก็บไว้
-□ 6. สร้าง auth middleware สำหรับ verify JWT
-□ 7. ใช้ข้อมูลจาก token.permission ในการกำหนดสิทธิ์
-□ 8. ทดสอบ Login Flow End-to-End
+□ 1. ลงทะเบียนแอปผ่าน Admin Dashboard (/admin/apps) หรือ SQL
+□ 2. ระบุ callback_urls ให้ครบ ⚠️ ขาดไม่ได้ — ไม่งั้น Login ถูกบล็อกทุกครั้ง
+       (ตรวจที่ origin เท่านั้น ไม่ต้องตรง path เป๊ะ)
+□ 3. กำหนดสิทธิ์ผู้ใช้ใน user_app_permissions (role_key + scope_dept_id)
+□ 4. เพิ่ม Authorized redirect URI ใน Google Cloud Console OAuth
+       (ต้องตรงกับ callback_urls ในข้อ 2 — คนละระบบ คนละจุดตั้งค่า อย่าลืมทำทั้งคู่)
+```
+
+### B. เลือก Pattern ก่อนเขียนโค้ด
+
+```
+□ 5. ตัดสินใจ: Auto-redirect (แนะนำ) หรือ ปุ่ม Login
+       อ่าน "UX Pattern" ใน 1_SSO_STARTER.md ก่อนเริ่ม
+```
+
+### C. Token Handling — จุดที่พลาดบ่อยที่สุด
+
+```
+□ 6. decodeToken() ต้องใช้ TextDecoder ไม่ใช่ atob() เปล่าๆ
+       ❌ JSON.parse(atob(...))                          → ภาษาไทยเพี้ยน
+       ✅ TextDecoder('utf-8').decode(Uint8Array(...))   → ถูกต้อง
+□ 7. ตรวจ token expiry (exp) ก่อนใช้งานทุกครั้ง ไม่ใช่เชื่อว่ามี token แล้วพอ
+□ 8. เก็บ token ใน sessionStorage (ไม่ใช่ localStorage) เพื่อให้หมดอายุเมื่อปิด browser
+       — ยกเว้นมีเหตุผลเฉพาะ (เช่น ต้องการให้อยู่ข้าม tab/session)
+```
+
+### D. Logout — ป้องกัน Auto-redirect วนซ้ำ (เกิดขึ้นจริงระหว่างพัฒนา demo2)
+
+```
+□ 9. logout() ต้องตั้ง LOGOUT_FLAG ก่อนแสดงหน้า "ออกจากระบบแล้ว"
+       ❌ logout() { clearToken(); loginWithSSO(); }   ← วนซ้ำไม่สิ้นสุด!
+       ✅ logout() { clearToken(); setLogoutFlag(); showLoggedOutScreen(); }
+□ 10. window.onload (หรือ useEffect) ต้องเช็ค 3 กรณีเสมอ: มี token / logout flag / ไม่มีอะไรเลย
+□ 11. ปุ่ม "เข้าสู่ระบบใหม่" ต้องล้าง LOGOUT_FLAG ก่อน redirect ไป SSO
+□ 12. แจ้งผู้ใช้ว่า logout = local เท่านั้น ("หากใช้คอมสาธารณะ กรุณาปิด Browser ด้วย")
+```
+
+### E. Security — ถ้าแอปมี Backend ของตัวเอง
+
+```
+□ 13. Backend verify JWT ด้วย RS256 Public Key เสมอ (ห้าม trust payload โดยไม่ verify)
+□ 14. ใช้ permission.role + permission.allowed_dept_id กรองข้อมูลทุก query
+       (ห้ามดึงข้อมูลทั้งหมดมาแสดงแล้วค่อยกรองที่ frontend)
+□ 15. ถ้าแอปมี CORS เปิดกว้าง ห้าม endpoint ไหนพึ่ง Cookie/Session ยืนยันตัวตน
+       ต้องใช้ JWT (Bearer token) เท่านั้น — ดูตัวอย่างผิด/ถูกใน 1_SSO_STARTER.md ข้อ 5
+□ 16. ถ้าแอปตั้ง Content-Security-Policy (เช่นใช้ Helmet) ห้ามใช้:
+       - <script> แบบ inline → ใช้ external .js file แทน
+       - onclick="..." ในแท็บ HTML → ใช้ addEventListener() แทน
+       (Helmet default บล็อกทั้งคู่ ทำให้ปุ่ม/ฟังก์ชันไม่ทำงานเงียบๆ)
+```
+
+### F. ทดสอบก่อน Go Live
+
+```
+□ 17. ทดสอบ Login Flow End-to-End ด้วย account จริง
+□ 18. ทดสอบ Logout แล้ว Refresh หน้า — ต้องยังอยู่หน้า "ออกจากระบบแล้ว" ไม่ auto-login กลับ
+□ 19. ทดสอบเปิดแอปอื่นที่ login ไว้แล้ว (ถ้ามีหลายแอป) — ต้องเข้าได้โดยไม่ถาม password ซ้ำ
+□ 20. ทดสอบ redirect_uri ที่ไม่ตรง callback_urls — ต้องถูกปฏิเสธ 400 ไม่ใช่ผ่าน
+□ 21. ทดสอบกับ user ที่ไม่มีสิทธิ์ในแอปนี้ — ต้องเห็นข้อความ 403 ชัดเจน ไม่ error 500
 ```
