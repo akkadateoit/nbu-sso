@@ -36,14 +36,37 @@ passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
 // ========================================================
-// Helper: สร้างหน้า HTML error แบบ inline
+// Helper: สร้างหน้า HTML error แบบ inline (dark glassmorphism — เข้าชุดกับหน้าแรก)
 // ========================================================
+const ERROR_ICONS = {
+  // ไม่มีสิทธิ์ / ยืนยันตัวตนไม่ผ่าน (401, 403) — กุญแจล็อก สีแดง-ส้ม
+  denied: {
+    grad: ['#ef4444', '#f97316'], glow: 'rgba(239,68,68,.35)',
+    svg: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  },
+  // ระบบขัดข้องฝั่ง server (500) — แปดเหลี่ยม สีแดงเข้ม
+  error: {
+    grad: ['#dc2626', '#b91c1c'], glow: 'rgba(220,38,38,.4)',
+    svg: '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  },
+  // ค่าที่ส่งมาไม่ถูกต้อง / ไม่พบข้อมูล (400, 404) — สามเหลี่ยมเตือน สีน้ำเงิน-ม่วง
+  warning: {
+    grad: ['#6366f1', '#3b82f6'], glow: 'rgba(99,102,241,.35)',
+    svg: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  },
+};
+
 function renderError(res, statusCode, title, message, detail = '') {
   // escape ทุกค่าก่อนแทรกใน HTML ป้องกัน XSS — title/message มาจาก code คงที่
   // แต่ detail มักมีค่าจาก user input (เช่น app_id, email) จึงต้อง escape เสมอ
   const safeTitle   = escapeHtml(title);
   const safeMessage = escapeHtml(message);
   const safeDetail  = escapeHtml(detail);
+
+  const variant = (statusCode === 401 || statusCode === 403) ? ERROR_ICONS.denied
+                : (statusCode === 500) ? ERROR_ICONS.error
+                : ERROR_ICONS.warning;
+
   res.status(statusCode).send(`
     <!DOCTYPE html>
     <html lang="th">
@@ -51,26 +74,77 @@ function renderError(res, statusCode, title, message, detail = '') {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${safeTitle} — NBU SSO</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Inter:wght@600;700;800&display=swap" rel="stylesheet">
       <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .card { background: white; border-radius: 16px; padding: 48px 40px; max-width: 480px; width: 90%; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-        .icon { font-size: 56px; margin-bottom: 24px; }
-        h1 { color: #1a1a2e; font-size: 22px; margin-bottom: 12px; }
-        p { color: #555; font-size: 15px; line-height: 1.6; }
-        .detail { margin-top: 16px; font-size: 13px; color: #999; background: #f8f8f8; border-radius: 8px; padding: 12px; }
-        .btn { display: inline-block; margin-top: 28px; padding: 12px 28px; background: #1a73e8; color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; }
-        .logo { font-size: 13px; color: #aaa; margin-top: 32px; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: 'Sarabun', 'Inter', sans-serif;
+          background: #060b18; color: #f1f5f9;
+          min-height: 100vh; display: flex; align-items: center; justify-content: center;
+          padding: 24px; position: relative; overflow: hidden;
+        }
+        .ambient {
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background:
+            radial-gradient(ellipse 700px 500px at 15% 10%, ${variant.glow} 0%, transparent 70%),
+            radial-gradient(ellipse 600px 500px at 85% 90%, rgba(59,130,246,.10) 0%, transparent 70%);
+        }
+        .grid-bg {
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+          background-size: 48px 48px;
+          mask-image: radial-gradient(ellipse 100% 100% at 50% 30%, black 30%, transparent 100%);
+        }
+        .card {
+          position: relative; z-index: 1;
+          background: rgba(255,255,255,.04); backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(255,255,255,.1); border-radius: 20px;
+          padding: 44px 36px; max-width: 440px; width: 100%; text-align: center;
+          box-shadow: 0 20px 60px rgba(0,0,0,.5);
+          animation: rise .5s cubic-bezier(.16,1,.3,1);
+        }
+        @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .icon-badge {
+          width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 24px;
+          display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(135deg, ${variant.grad[0]}, ${variant.grad[1]});
+          box-shadow: 0 0 30px ${variant.glow};
+        }
+        h1 { font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 10px; }
+        p { color: #94a3b8; font-size: 14.5px; line-height: 1.65; }
+        .detail {
+          margin-top: 18px; font-size: 12.5px; color: #64748b;
+          background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.1);
+          border-radius: 10px; padding: 12px 14px; word-break: break-word; text-align: left;
+        }
+        .btn {
+          display: inline-flex; align-items: center; gap: 6px; margin-top: 30px;
+          padding: 11px 26px; background: rgba(255,255,255,.06); color: #f1f5f9;
+          border: 1px solid rgba(255,255,255,.1); border-radius: 10px; text-decoration: none;
+          font-size: 13.5px; font-weight: 600; transition: background .2s, border-color .2s;
+        }
+        .btn:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); }
+        .footer { margin-top: 28px; font-size: 11px; color: #475569; letter-spacing: .5px; }
       </style>
     </head>
     <body>
+      <div class="ambient"></div>
+      <div class="grid-bg"></div>
       <div class="card">
-        <div class="icon">🔒</div>
+        <div class="icon-badge">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${variant.svg}</svg>
+        </div>
         <h1>${safeTitle}</h1>
         <p>${safeMessage}</p>
         ${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}
-        <a href="javascript:history.back()" class="btn">← ย้อนกลับ</a>
-        <div class="logo">North Bangkok University — Centralized SSO</div>
+        <a href="javascript:history.back()" class="btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          ย้อนกลับ
+        </a>
+        <div class="footer">NORTH BANGKOK UNIVERSITY — CENTRALIZED SSO</div>
       </div>
     </body>
     </html>
