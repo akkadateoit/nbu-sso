@@ -138,6 +138,33 @@ async function deleteUser(userId) {
   return rows[0] || null;
 }
 
+// หา user จาก email ถ้ามีอยู่แล้ว ไม่งั้นสร้างใหม่ — คืน { user, created: boolean }
+async function findOrCreateUser(email, name) {
+  const created = await createUser(email, name);
+  if (created) return { user: created, created: true };
+
+  const { rows } = await pool.query(
+    `SELECT id, email, name, is_active FROM users WHERE email = $1`,
+    [email]
+  );
+  return { user: rows[0], created: false };
+}
+
+// คัดลอกสิทธิ์ทั้งหมดของ user ต้นทาง ไปให้ user ปลายทาง
+// ใช้ grantPermission (ON CONFLICT DO UPDATE) ทีละรายการ — ถ้าปลายทางมีสิทธิ์แอป+scope
+// นั้นอยู่แล้วจะถูก overwrite ด้วย role ของต้นทาง
+async function copyPermissions(sourceUserId, targetUserId) {
+  const { rows: sourcePerms } = await pool.query(
+    `SELECT app_id, role_key, scope_dept_id FROM user_app_permissions WHERE user_id = $1`,
+    [sourceUserId]
+  );
+  const copied = [];
+  for (const p of sourcePerms) {
+    copied.push(await grantPermission(targetUserId, p.app_id, p.role_key, p.scope_dept_id));
+  }
+  return copied;
+}
+
 // ── Permissions ───────────────────────────────────────────────
 async function grantPermission(userId, appId, roleKey, scopeDeptId) {
   const { rows } = await pool.query(`
@@ -268,8 +295,8 @@ async function writeAuditLog({ actedById, actedByEmail, action, targetEmail, app
 module.exports = {
   getStats, getRecentAuditLogs,
   listApps, createApp, updateApp,
-  listUsers, createUser, getUserPermissions, setUserActive, deleteUser,
-  grantPermission, updatePermission, revokePermission,
+  listUsers, createUser, findOrCreateUser, getUserPermissions, setUserActive, deleteUser,
+  grantPermission, updatePermission, revokePermission, copyPermissions,
   listRoles, createRole, updateRole, deleteRole,
   listDepartments, createDepartment, updateDepartment, deleteDepartment,
   listAuditLogs, writeAuditLog,

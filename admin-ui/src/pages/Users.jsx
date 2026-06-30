@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle, X, Pencil } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, Plus, Trash2, UserX, AlertTriangle, X, Pencil, Copy, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -306,6 +306,133 @@ function GrantDialog({ user }) {
   )
 }
 
+// ── Copy Permissions Dialog ─────────────────────────────────────
+function CopyPermissionsDialog({ sourceUser }) {
+  const [open,       setOpen]       = useState(false)
+  const [email,      setEmail]      = useState('')
+  const [name,       setName]       = useState('')
+  const qc = useQueryClient()
+
+  // โหลดสิทธิ์ของต้นทางเพื่อแสดง preview ก่อนคัดลอกจริง
+  const { data: sourcePerms = [], isLoading: loadingPerms } = useQuery({
+    queryKey: ['userPerms', sourceUser.id],
+    queryFn:  () => api.get(`/users/${sourceUser.id}/permissions`).then(r => r.data),
+    enabled:  open,
+  })
+
+  const copy = useMutation({
+    mutationFn: () => api.post(`/users/${sourceUser.id}/copy-permissions`, {
+      target_email: email.trim(),
+      target_name:  name.trim(),
+    }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+
+  function handleOpen(v) {
+    if (v) { setEmail(''); setName(''); copy.reset() }
+    setOpen(v)
+  }
+
+  const emailValid = email.endsWith('@northbkk.ac.th') && email.toLowerCase() !== sourceUser.email.toLowerCase()
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost" size="sm"
+          className="h-8 w-8 p-0 text-blue-400 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+          title="คัดลอกสิทธิ์ไปยังคนอื่น"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>คัดลอกสิทธิ์</DialogTitle>
+          <DialogDescription>
+            คัดลอกสิทธิ์ทั้งหมดของ <span className="font-medium">{sourceUser.name}</span> ({sourceUser.email}) ไปให้บุคลากรใหม่
+          </DialogDescription>
+        </DialogHeader>
+
+        {copy.isSuccess ? (
+          <div className="flex flex-col items-center text-center gap-2 py-4">
+            <CheckCircle2 className="h-10 w-10 text-green-500" />
+            <p className="font-medium text-gray-900">คัดลอกสิทธิ์สำเร็จ</p>
+            <p className="text-sm text-gray-500">
+              {copy.data.target_user_created ? 'สร้างผู้ใช้ใหม่และ' : ''}
+              เพิ่มสิทธิ์ {copy.data.copied_count} รายการให้ {copy.data.target_user.email} แล้ว
+            </p>
+            <Button size="sm" variant="outline" onClick={() => setOpen(false)}>ปิด</Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>อีเมลบุคลากรใหม่ *</Label>
+              <Input
+                type="email"
+                placeholder="firstname.l@northbkk.ac.th"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className={email && !emailValid ? 'border-red-400 focus-visible:ring-red-400' : ''}
+              />
+              {email && !emailValid && (
+                <p className="text-xs text-red-500">
+                  อีเมลต้องลงท้ายด้วย @northbkk.ac.th และต้องไม่ใช่อีเมลต้นทาง
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>ชื่อ-นามสกุล <span className="text-gray-400 font-normal">(ไม่บังคับ)</span></Label>
+              <Input
+                placeholder="จะ sync อัตโนมัติเมื่อ Login ครั้งแรก"
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+            </div>
+
+            {/* Preview สิทธิ์ที่จะถูกคัดลอก */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-500">สิทธิ์ที่จะคัดลอก ({sourcePerms.length} รายการ)</Label>
+              {loadingPerms ? (
+                <p className="text-sm text-gray-400">กำลังโหลด...</p>
+              ) : sourcePerms.length === 0 ? (
+                <p className="text-sm text-gray-400">ผู้ใช้นี้ยังไม่มีสิทธิ์ใดๆ ให้คัดลอก</p>
+              ) : (
+                <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                  {sourcePerms.map(p => (
+                    <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                      <code className="rounded bg-blue-100 text-blue-800 px-1.5 py-0.5 font-mono">{p.app_name}</code>
+                      <Badge variant="secondary" className="font-mono">{p.role_key}</Badge>
+                      <span className="text-gray-500 truncate">[{p.scope_level}] {p.dept_name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {copy.error && (
+              <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+                {copy.error.response?.data?.error || 'เกิดข้อผิดพลาด'}
+              </p>
+            )}
+
+            <Button
+              className="w-full"
+              onClick={() => copy.mutate()}
+              disabled={!email || !emailValid || sourcePerms.length === 0 || copy.isPending}
+            >
+              {copy.isPending ? 'กำลังคัดลอก...' : `คัดลอกสิทธิ์ ${sourcePerms.length} รายการ`}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── User Row ──────────────────────────────────────────────────
 function UserRow({ user }) {
   const [expanded, setExpanded] = useState(false)
@@ -356,6 +483,8 @@ function UserRow({ user }) {
               <p className="font-bold text-sm">{user.permission_count}</p>
               <p className="text-xs text-gray-400">apps</p>
             </div>
+            {/* Copy permissions button */}
+            <CopyPermissionsDialog sourceUser={user} />
             {/* Delete user button */}
             <Button
               variant="ghost" size="sm"

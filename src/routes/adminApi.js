@@ -152,6 +152,38 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// คัดลอกสิทธิ์ทั้งหมดของ user คนนี้ (:id = ต้นทาง) ไปให้ email ปลายทาง
+// ถ้า email ปลายทางยังไม่มี user ในระบบ จะสร้างให้อัตโนมัติ (เหมือน "เพิ่มผู้ใช้ล่วงหน้า")
+router.post('/users/:id/copy-permissions', async (req, res) => {
+  const { target_email, target_name } = req.body;
+  if (!target_email) return res.status(400).json({ error: 'ต้องส่ง target_email' });
+  const email = target_email.toLowerCase().trim();
+  if (!email.endsWith('@northbkk.ac.th'))
+    return res.status(400).json({ error: 'อีเมลต้องลงท้ายด้วย @northbkk.ac.th เท่านั้น' });
+
+  try {
+    const { pool } = require('../db');
+    const { rows: sr } = await pool.query('SELECT id, email FROM users WHERE id=$1', [req.params.id]);
+    const sourceUser = sr[0];
+    if (!sourceUser) return res.status(404).json({ error: 'ไม่พบ User ต้นทาง' });
+    if (sourceUser.email === email)
+      return res.status(400).json({ error: 'อีเมลปลายทางต้องไม่ใช่คนเดียวกับต้นทาง' });
+
+    const { user: targetUser, created } = await svc.findOrCreateUser(email, target_name?.trim());
+    const copied = await svc.copyPermissions(sourceUser.id, targetUser.id);
+
+    await svc.writeAuditLog({
+      actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
+      action: 'COPY_PERMISSIONS', targetEmail: email,
+      detail: { source_email: sourceUser.email, target_user_created: created, permission_count: copied.length },
+    });
+
+    res.status(201).json({ target_user: targetUser, target_user_created: created, copied_count: copied.length });
+  } catch (e) {
+    sendError(res, 500, e);
+  }
+});
+
 router.patch('/users/:id/active', async (req, res) => {
   const { is_active } = req.body;
   try {
