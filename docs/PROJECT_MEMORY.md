@@ -158,6 +158,9 @@ GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
 GOOGLE_SERVICE_ACCOUNT_KEY_PATH=./secrets/service-account.json
 GOOGLE_WORKSPACE_ADMIN_EMAIL=akkadate.si@northbkk.ac.th
 ALLOWED_GOOGLE_GROUP=sso-staff-group@northbkk.ac.th
+# ✅ ใส่ nested group ได้ (เช่น เอา nbu.staff@northbkk.ac.th ทั้งกลุ่มมาเป็นสมาชิกของ
+# sso-staff-group@ อีกที) เพราะ googleGroup.js ใช้ admin.members.hasMember() ซึ่ง
+# เช็คทั้ง direct + nested member ในการเรียก API ครั้งเดียว — ไม่ต้องเพิ่มทีละคน
 
 APP_PORT=3000
 NODE_ENV=development

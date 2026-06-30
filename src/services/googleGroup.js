@@ -31,6 +31,8 @@ function getAdminClient() {
 
 /**
  * ตรวจสอบว่า email เป็นสมาชิกของ ALLOWED_GOOGLE_GROUP หรือไม่
+ * ใช้ hasMember() แทน get() เพราะรองรับทั้ง direct member และ nested member
+ * (เช่น เอา group อื่นทั้งกลุ่มมาเป็นสมาชิกของ ALLOWED_GOOGLE_GROUP อีกที)
  * @param {string} email - อีเมลที่ต้องการตรวจ
  * @returns {Promise<boolean>}
  */
@@ -43,17 +45,17 @@ async function isGroupMember(email) {
 
   try {
     const admin = getAdminClient();
-    await admin.members.get({
+    const res = await admin.members.hasMember({
       groupKey: config.google.allowedGroup,
       memberKey: email,
     });
-    // ถ้า API ไม่ throw error แปลว่าพบ member
-    console.log(`[GroupCheck] ✅ ${email} เป็นสมาชิกของ ${config.google.allowedGroup}`);
-    return true;
+    const isMember = res.data.isMember === true;
+    console.log(`[GroupCheck] ${isMember ? '✅' : '❌'} ${email} ${isMember ? 'เป็น' : 'ไม่เป็น'}สมาชิกของ ${config.google.allowedGroup}`);
+    return isMember;
   } catch (err) {
     if (err.code === 404) {
-      // 404 = ไม่พบใน Group (นักศึกษา หรือบุคคลภายนอก)
-      console.log(`[GroupCheck] ❌ ${email} ไม่เป็นสมาชิกของ ${config.google.allowedGroup}`);
+      // 404 = ไม่พบ email นี้ในระบบ Workspace เลย (เช่น เป็น gmail.com ส่วนตัว)
+      console.log(`[GroupCheck] ❌ ${email} ไม่พบในระบบ Workspace`);
       return false;
     }
     // Error อื่นๆ (network, auth) — throw ขึ้นไปให้ caller จัดการ
