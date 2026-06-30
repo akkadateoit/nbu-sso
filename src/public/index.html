@@ -191,45 +191,6 @@
     .step h4 { font-size: 13px; font-weight: 700; margin-bottom: 7px; color: var(--text); }
     .step p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
 
-    /* ─── API TABLE ─── */
-    .api-table {
-      margin-top: 40px; border: 1px solid var(--border2);
-      border-radius: 20px; overflow: hidden;
-      background: rgba(255,255,255,.02);
-      backdrop-filter: blur(8px);
-    }
-    .api-head {
-      padding: 18px 24px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .api-head-icon {
-      width: 32px; height: 32px; border-radius: 9px;
-      background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .api-head h3 { font-size: 14px; font-weight: 700; }
-    .api-head p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
-    .api-row {
-      display: grid; grid-template-columns: 56px 1fr 1fr;
-      align-items: center; gap: 20px;
-      padding: 15px 24px; border-bottom: 1px solid var(--border);
-      transition: background .15s;
-    }
-    .api-row:last-child { border-bottom: none; }
-    .api-row:hover { background: rgba(255,255,255,.03); }
-    .badge {
-      display: inline-block;
-      font-family: 'Inter', monospace; font-size: 10px; font-weight: 800;
-      padding: 3px 8px; border-radius: 6px; letter-spacing: .5px; text-align: center;
-    }
-    .badge.get  { background: rgba(59,130,246,.15);  color: #93c5fd; border: 1px solid rgba(59,130,246,.3); }
-    .badge.post { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3); }
-    .api-path {
-      font-family: 'Inter', monospace; font-size: 13px; color: var(--text); font-weight: 500;
-    }
-    .api-path em { color: var(--dim); font-style: normal; }
-    .api-desc { font-size: 12px; color: var(--muted); text-align: right; }
-
     /* ─── JWT CARDS ─── */
     .jwt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
     @media (max-width: 640px) { .jwt-grid { grid-template-columns: 1fr; } }
@@ -404,50 +365,6 @@
         <div class="step-num">5</div>
         <h4>ออก JWT Token</h4>
         <p>เซ็น RS256 อายุ 8 ชั่วโมง Redirect กลับ</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- API ENDPOINTS -->
-<div class="hr"></div>
-<section class="section">
-  <div class="container">
-    <div class="section-tag">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      Developer
-    </div>
-    <h2 class="section-title">API Endpoints</h2>
-    <p class="section-sub">สำหรับ developer ที่เชื่อมต่อแอปพลิเคชันกับ NBU SSO</p>
-    <div class="api-table">
-      <div class="api-head">
-        <div class="api-head-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        </div>
-        <div>
-          <h3>Public Endpoints</h3>
-          <p>ไม่ต้องใช้ Token ในการเรียก — เปิดให้ทุก Client เข้าถึงได้</p>
-        </div>
-      </div>
-      <div class="api-row">
-        <span class="badge get">GET</span>
-        <div class="api-path">/login<em>?app_id=&amp;redirect_uri=</em></div>
-        <span class="api-desc">เริ่ม Login Flow</span>
-      </div>
-      <div class="api-row">
-        <span class="badge get">GET</span>
-        <div class="api-path">/api/v1/public-key</div>
-        <span class="api-desc">RSA Public Key (PEM)</span>
-      </div>
-      <div class="api-row">
-        <span class="badge post">POST</span>
-        <div class="api-path">/api/v1/validate-token</div>
-        <span class="api-desc">Verify JWT Token</span>
-      </div>
-      <div class="api-row">
-        <span class="badge get">GET</span>
-        <div class="api-path">/api/v1/health</div>
-        <span class="api-desc">Health Check</span>
       </div>
     </div>
   </div>
