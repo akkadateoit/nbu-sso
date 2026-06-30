@@ -178,9 +178,9 @@ router.get('/login', async (req, res) => {
       `ไม่พบ Application "${app_id}" ในระบบ กรุณาติดต่อผู้ดูแลระบบ`);
   }
   if (!isValidRedirectUri(redirect_uri, app.callback_urls)) {
-    return renderError(res, 400, 'Redirect URI ไม่ได้รับอนุญาต',
-      `"${redirect_uri}" ไม่ได้ลงทะเบียนไว้กับ Application "${app_id}"`,
-      'กรุณาติดต่อผู้ดูแลระบบเพื่อลงทะเบียน Callback URL ให้ถูกต้อง');
+    // ไม่แสดงรายละเอียดทางเทคนิค (redirect_uri/app_id) ให้ผู้ใช้ทั่วไปเห็น — log ไว้ฝั่ง server แทน
+    console.warn(`[Auth] ⚠️ Redirect URI ไม่ได้รับอนุญาต: "${redirect_uri}" (app_id: ${app_id})`);
+    return renderError(res, 403, 'ไม่มีสิทธิ์ใช้งาน', 'คุณไม่มีสิทธิ์ใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
   }
 
   // เก็บ app_id และ redirect_uri ไว้ใน session ก่อน redirect ไป Google
