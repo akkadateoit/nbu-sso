@@ -11,6 +11,7 @@ import {
   DialogDescription, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SearchSelect } from '@/components/ui/search-select'
 import api from '@/lib/api'
 
 // ── Confirm Dialog ─────────────────────────────────────────────
@@ -177,29 +178,23 @@ function EditPermDialog({ perm, userId }) {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Role</Label>
-            <Select value={roleKey} onValueChange={setRoleKey}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {roles.map(r => (
-                  <SelectItem key={r.role_key} value={r.role_key}>
-                    {r.role_key} — {r.role_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchSelect
+              value={roleKey}
+              onValueChange={setRoleKey}
+              placeholder="เลือก Role"
+              searchPlaceholder="ค้นหา Role..."
+              options={roles.map(r => ({ value: r.role_key, label: `${r.role_key} — ${r.role_name}` }))}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>หน่วยงาน (Scope)</Label>
-            <Select value={deptId} onValueChange={setDeptId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {depts.map(d => (
-                  <SelectItem key={d.id} value={String(d.id)}>
-                    [{d.dept_type}] {d.dept_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchSelect
+              value={deptId}
+              onValueChange={setDeptId}
+              placeholder="เลือกหน่วยงาน"
+              searchPlaceholder="ค้นหาหน่วยงาน..."
+              options={depts.map(d => ({ value: String(d.id), label: `[${d.dept_type}] ${d.dept_name}` }))}
+            />
           </div>
 
           {/* แสดงค่าเดิม */}
@@ -265,40 +260,33 @@ function GrantDialog({ user }) {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>แอปพลิเคชัน</Label>
-            <Select value={appId} onValueChange={setAppId}>
-              <SelectTrigger><SelectValue placeholder="เลือก App" /></SelectTrigger>
-              <SelectContent>
-                {apps.filter(a => a.is_active).map(a => (
-                  <SelectItem key={a.id} value={String(a.id)}>{a.app_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchSelect
+              value={appId}
+              onValueChange={setAppId}
+              placeholder="เลือก App"
+              searchPlaceholder="ค้นหา App..."
+              options={apps.filter(a => a.is_active).map(a => ({ value: String(a.id), label: a.app_name }))}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Role</Label>
-            <Select value={roleKey} onValueChange={setRoleKey}>
-              <SelectTrigger><SelectValue placeholder="เลือก Role" /></SelectTrigger>
-              <SelectContent>
-                {roles.map(r => (
-                  <SelectItem key={r.role_key} value={r.role_key}>
-                    {r.role_key} — {r.role_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchSelect
+              value={roleKey}
+              onValueChange={setRoleKey}
+              placeholder="เลือก Role"
+              searchPlaceholder="ค้นหา Role..."
+              options={roles.map(r => ({ value: r.role_key, label: `${r.role_key} — ${r.role_name}` }))}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>หน่วยงาน (Scope)</Label>
-            <Select value={deptId} onValueChange={setDeptId}>
-              <SelectTrigger><SelectValue placeholder="เลือกหน่วยงาน" /></SelectTrigger>
-              <SelectContent>
-                {depts.map(d => (
-                  <SelectItem key={d.id} value={String(d.id)}>
-                    [{d.dept_type}] {d.dept_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchSelect
+              value={deptId}
+              onValueChange={setDeptId}
+              placeholder="เลือกหน่วยงาน"
+              searchPlaceholder="ค้นหาหน่วยงาน..."
+              options={depts.map(d => ({ value: String(d.id), label: `[${d.dept_type}] ${d.dept_name}` }))}
+            />
           </div>
           {grant.error && (
             <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
