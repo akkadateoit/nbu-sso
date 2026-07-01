@@ -100,6 +100,30 @@ router.patch('/apps/:id', async (req, res) => {
   }
 });
 
+router.delete('/apps/:id', async (req, res) => {
+  try {
+    const result = await svc.deleteApp(req.params.id);
+
+    if (result.error === 'not_found')
+      return res.status(404).json({ error: 'ไม่พบ App' });
+    if (result.error === 'protected')
+      return res.status(403).json({ error: 'ไม่สามารถลบ sso-admin ได้' });
+    if (result.error === 'still_active')
+      return res.status(400).json({ error: 'ต้องปิดการใช้งาน App ก่อนลบ' });
+    if (result.error === 'has_permissions')
+      return res.status(400).json({ error: `ต้องถอนสิทธิ์ผู้ใช้ทั้งหมด (${result.count} คน) ก่อนลบ` });
+
+    await svc.writeAuditLog({
+      actedById: req.adminUser.sub, actedByEmail: req.adminUser.email,
+      action: 'DELETE_APP', appName: result.deleted.app_name,
+      detail: { app_id: result.deleted.id },
+    });
+    res.json({ success: true, deleted: result.deleted });
+  } catch (e) {
+    sendError(res, 500, e);
+  }
+});
+
 // ── Users ─────────────────────────────────────────────────────
 router.post('/users', async (req, res) => {
   const { email, name } = req.body;

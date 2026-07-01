@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Copy, Check, ToggleLeft, ToggleRight, Search, X, Pencil, Link2 } from 'lucide-react'
+import { Plus, Copy, Check, ToggleLeft, ToggleRight, Search, X, Pencil, Link2, Trash2, AlertTriangle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from '@/components/ui/dialog'
 import api from '@/lib/api'
 
 function CreateAppDialog({ onCreated }) {
@@ -173,9 +173,19 @@ export default function Apps() {
     queryFn: () => api.get('/apps').then(r => r.data),
   })
 
+  const [confirmDelete, setConfirmDelete] = useState(null) // app object
+
   const toggleActive = useMutation({
     mutationFn: ({ id, is_active }) => api.patch(`/apps/${id}`, { is_active }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['apps'] }),
+  })
+
+  const deleteApp = useMutation({
+    mutationFn: (id) => api.delete(`/apps/${id}`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['apps'] })
+      setConfirmDelete(null)
+    },
   })
 
   const filtered = apps.filter(a =>
@@ -216,6 +226,45 @@ export default function Apps() {
           {filtered.length} / {apps.length} apps
         </span>
       </div>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog open={!!confirmDelete} onOpenChange={v => !v && setConfirmDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <DialogTitle className="text-base">ยืนยันการลบ App</DialogTitle>
+            </div>
+            <DialogDescription>
+              {confirmDelete?.permission_count > 0
+                ? `ไม่สามารถลบได้ — "${confirmDelete?.app_name}" ยังมีผู้ใช้ ${confirmDelete?.permission_count} คนที่มีสิทธิ์อยู่ กรุณาถอนสิทธิ์ทั้งหมดก่อน`
+                : `ลบ "${confirmDelete?.app_name}" ออกจากระบบถาวรใช่ไหม? ไม่สามารถกู้คืนได้`}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteApp.error && (
+            <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+              {deleteApp.error.response?.data?.error || 'เกิดข้อผิดพลาด'}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 mt-2">
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" onClick={() => deleteApp.reset()}>ยกเลิก</Button>
+            </DialogClose>
+            {confirmDelete?.permission_count === 0 && (
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => deleteApp.mutate(confirmDelete.id)}
+                disabled={deleteApp.isPending}
+              >
+                {deleteApp.isPending ? 'กำลังลบ...' : 'ลบ App'}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4">
         {isLoading ? (
@@ -262,6 +311,19 @@ export default function Apps() {
                   ? <><ToggleRight className="h-4 w-4" />ปิดใช้งาน</>
                   : <><ToggleLeft  className="h-4 w-4" />เปิดใช้งาน</>}
               </Button>
+              {/* ลบ App — แสดงเมื่อปิดแล้วเท่านั้น, สีเทาถ้ายังมี user */}
+              {!app.is_active && app.app_name !== 'sso-admin' && (
+                <Button
+                  variant="ghost" size="sm"
+                  className="text-gray-400 hover:text-red-600 hover:bg-red-50 px-2"
+                  onClick={() => setConfirmDelete(app)}
+                  title={app.permission_count > 0
+                    ? `ถอนสิทธิ์ผู้ใช้ ${app.permission_count} คนก่อนลบ`
+                    : 'ลบ App นี้ออกจากระบบ'}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

@@ -65,6 +65,29 @@ async function updateApp(id, fields) {
   return rows[0] || null;
 }
 
+async function deleteApp(id) {
+  // ตรวจสอบเงื่อนไขก่อนลบ: ต้องปิดแล้ว + ไม่มี user ผูกอยู่ + ไม่ใช่ sso-admin
+  const { rows } = await pool.query(`
+    SELECT a.app_name, a.is_active, COUNT(uap.id)::int AS permission_count
+    FROM apps a
+    LEFT JOIN user_app_permissions uap ON uap.app_id = a.id
+    WHERE a.id = $1
+    GROUP BY a.id
+  `, [id]);
+
+  const app = rows[0];
+  if (!app) return { error: 'not_found' };
+  if (app.app_name === 'sso-admin') return { error: 'protected' };
+  if (app.is_active) return { error: 'still_active' };
+  if (app.permission_count > 0) return { error: 'has_permissions', count: app.permission_count };
+
+  const { rows: deleted } = await pool.query(
+    `DELETE FROM apps WHERE id = $1 RETURNING id, app_name`,
+    [id]
+  );
+  return { deleted: deleted[0] };
+}
+
 // ── Users ─────────────────────────────────────────────────────
 async function listUsers({ search = '', page = 1, limit = 20 } = {}) {
   const offset  = (page - 1) * limit;
@@ -294,7 +317,7 @@ async function writeAuditLog({ actedById, actedByEmail, action, targetEmail, app
 
 module.exports = {
   getStats, getRecentAuditLogs,
-  listApps, createApp, updateApp,
+  listApps, createApp, updateApp, deleteApp,
   listUsers, createUser, findOrCreateUser, getUserPermissions, setUserActive, deleteUser,
   grantPermission, updatePermission, revokePermission, copyPermissions,
   listRoles, createRole, updateRole, deleteRole,
